@@ -17,6 +17,7 @@ func main() {
 	l := slog.NewLogger(cfg)
 
 	pool := postgres.New(cfg)
+	defer pool.Close()
 
 	a := api.New(pool, l, cfg)
 
