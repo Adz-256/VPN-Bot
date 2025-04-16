@@ -19,7 +19,7 @@ func TestWgPools(t *testing.T) {
 
 	id, err := pool.CreateAccount(context.Background(), &repoModels.WgPeer{
 		UserID:     1,
-		PublicKey:  "test8",
+		PublicKey:  "12312",
 		ConfigFile: "test",
 		ServerIP:   net.IPNet{IP: net.ParseIP("127.0.0.1")},
 		ProvidedIP: net.IPNet{IP: net.ParseIP("127.0.0.1")},
