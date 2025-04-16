@@ -26,7 +26,7 @@ const (
 	providedIPColumn = "provided_ip"
 )
 
-func (w *WgPools) GetAccount(ctx context.Context, id int) (*repoModels.WgPeer, error) {
+func (w *WgPools) GetAccount(ctx context.Context, id int64) (*repoModels.WgPeer, error) {
 	query, args, err := w.b.Select("*").From(WgPoolsTable).Where(sq.Eq{idColumn: id}).ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("cannot build sql query: %v", err)
@@ -41,13 +41,13 @@ func (w *WgPools) GetAccount(ctx context.Context, id int) (*repoModels.WgPeer, e
 	return &wgPeer, nil
 }
 
-func (w *WgPools) CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) (int, error) {
+func (w *WgPools) CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) (int64, error) {
 	query, args, err := w.b.Insert(WgPoolsTable).Columns(publicKeyColumn, configFileColumn, serverIPColumn, providedIPColumn).Values(wgPeer.PublicKey, wgPeer.ConfigFile, wgPeer.ServerIP, wgPeer.ProvidedIP).Suffix("RETURNING id").ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("cannot build sql query: %v", err)
 	}
 
-	var id int
+	var id int64
 	err = w.db.QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("cannot execute sql query: %v", err)
@@ -74,7 +74,7 @@ func (w *WgPools) UpdateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) 
 	return nil
 }
 
-func (w *WgPools) DeleteAccount(ctx context.Context, id int) error {
+func (w *WgPools) DeleteAccount(ctx context.Context, id int64) error {
 	query, args, err := w.b.Delete(WgPoolsTable).Where(sq.Eq{idColumn: id}).ToSql()
 	if err != nil {
 		return fmt.Errorf("cannot build sql query: %v", err)

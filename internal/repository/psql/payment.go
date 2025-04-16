@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/Adz-256/cheapVPN/internal/repository"
+	repoModels "github.com/Adz-256/cheapVPN/internal/repository/psql/models"
 	"github.com/Adz-256/cheapVPN/utils"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -34,11 +35,12 @@ var (
 	errPaymentIDEmpty = errors.New("payment id is empty")
 )
 
-func (p *Payments) Create(ctx context.Context, payment *psql.Payment) (id int, err error) {
+func (p *Payments) Create(ctx context.Context, payment *repoModels.Payment) (id int64, err error) {
 	mPay, err := utils.StructToMap(payment, true)
 	if err != nil {
 		return 0, fmt.Errorf("malformed struct: %w", err)
 	}
+
 	query, args, err := p.b.Insert(tablePayments).SetMap(mPay).Suffix("RETURNING id").ToSql()
 	if err != nil {
 		return 0, fmt.Errorf("failed to build query: %w", err)
@@ -48,10 +50,11 @@ func (p *Payments) Create(ctx context.Context, payment *psql.Payment) (id int, e
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute query: %w", err)
 	}
+
 	return id, nil
 }
 
-func (p *Payments) Update(ctx context.Context, pay *psql.Payment) error {
+func (p *Payments) Update(ctx context.Context, pay *repoModels.Payment) error {
 	mPay, err := utils.StructToMap(pay, false)
 	if err != nil {
 		return fmt.Errorf("malformed struct: %v", err)

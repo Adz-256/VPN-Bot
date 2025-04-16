@@ -63,14 +63,14 @@ func (u *Users) GetAll(ctx context.Context) ([]repoModels.User, error) {
 	return users, nil
 }
 
-func (u *Users) GetUser(ctx context.Context, chatID int64) (*repoModels.User, error) {
+func (u *Users) GetUser(ctx context.Context, id int64) (*repoModels.User, error) {
 	query, args, err := u.b.Select(
 		idColumn,
 		chatIDColumn,
 		usernameColumn,
 		isAdminColumn,
 		createdAtColumn,
-	).From(tableUsers).Where(sq.Eq{chatIDColumn: chatID}).ToSql()
+	).From(tableUsers).Where(sq.Eq{idColumn: id}).ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("cannot build sql query: %v", err)
 	}
@@ -90,7 +90,7 @@ func (u *Users) GetUser(ctx context.Context, chatID int64) (*repoModels.User, er
 	return &user, nil
 }
 
-func (u *Users) CreateUser(ctx context.Context, user *repoModels.User) error {
+func (u *Users) CreateUser(ctx context.Context, user *repoModels.User) (int64, error) {
 	query, args, err := u.b.Insert(tableUsers).Columns(
 		chatIDColumn,
 		usernameColumn,
@@ -99,18 +99,16 @@ func (u *Users) CreateUser(ctx context.Context, user *repoModels.User) error {
 		user.Username,
 	).Suffix("RETURNING id").ToSql()
 	if err != nil {
-		return fmt.Errorf("cannot build sql query: %v", err)
+		return 0, fmt.Errorf("cannot build sql query: %v", err)
 	}
 
 	var id int64
 	err = u.db.QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("cannot execute sql query: %v", err)
+		return 0, fmt.Errorf("cannot execute sql query: %v", err)
 	}
 
-	user.ID = id
-
-	return nil
+	return id, nil
 }
 
 func (u *Users) DeleteUser(ctx context.Context, id int64) error {
