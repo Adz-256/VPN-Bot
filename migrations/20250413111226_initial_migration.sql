@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS Payments (
     user_id INT NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
     plan_id INT NOT NULL REFERENCES Plans(id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
-    status TEXT NOT NULL CHECK (status IN ('pending', 'canceled', 'paid')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'canceled', 'paid')) DEFAULT 'pending',
     method TEXT NOT NULL,
     created_at timestamptz NOT NULL default CURRENT_TIMESTAMP,
     paid_at timestamptz
