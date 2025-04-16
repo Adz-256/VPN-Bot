@@ -77,7 +77,7 @@ func (p *Payments) Update(ctx context.Context, pay *repoModels.Payment) error {
 	return nil
 }
 
-func NewPaymentsRepo(db *pgxpool.Pool) *Payments {
+func NewPayments(db *pgxpool.Pool) *Payments {
 	sq := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	return &Payments{
