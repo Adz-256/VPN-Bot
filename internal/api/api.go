@@ -43,6 +43,8 @@ func (a *API) Run() error {
 		panic(err)
 	}
 
+	a.b = b
+
 	b.Start(ctx)
 
 	return nil
