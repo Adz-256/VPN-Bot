@@ -14,7 +14,7 @@ type UserRepository interface {
 }
 
 type WgPoolRepository interface {
-	GetAccount(ctx context.Context, id int64) (*repoModels.WgPeer, error)
+	GetUserAccounts(ctx context.Context, userID int64) (*repoModels.WgPeer, error)
 	CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) (int64, error)
 	UpdateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) error
 	DeleteAccount(ctx context.Context, id int64) error

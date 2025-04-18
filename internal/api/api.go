@@ -2,13 +2,12 @@ package api
 
 import (
 	"context"
-	"fmt"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"log/slog"
 	"os"
 	"os/signal"
+
+	"github.com/go-telegram/bot"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type BotConfig interface {
@@ -36,7 +35,7 @@ func (a *API) Run() error {
 	defer cancel()
 
 	opts := []bot.Option{
-		bot.WithDefaultHandler(handler),
+		bot.WithDefaultHandler(defaultHandler),
 	}
 	b, err := bot.New(a.c.Token(), opts...)
 	if err != nil {
@@ -45,15 +44,28 @@ func (a *API) Run() error {
 
 	a.b = b
 
-	b.Start(ctx)
+	a.registerHandlers()
 
+	b.Start(ctx)
 	return nil
 }
 
-func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	fmt.Println(update.Message.Chat.FirstName)
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   update.Message.Text,
-	})
+func (a *API) registerHandlers() {
+	a.b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, a.handleStart)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "start", bot.MatchTypeExact, a.handleStartCallback)
+
+	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/about", bot.MatchTypeExact, a.handleAbout)
+	// a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "about", bot.MatchTypeExact, a.handleAbout)
+
+	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/support", bot.MatchTypeExact, a.handleSupport)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "support", bot.MatchTypeExact, a.handleSupport)
+
+	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/subscriptions", bot.MatchTypeExact, a.handleSubscriptions)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "subscriptions", bot.MatchTypeExact, a.handleSubscriptions)
+
+	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/buy", bot.MatchTypeExact, a.handleBuy)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "buy", bot.MatchTypeExact, a.handleBuy)
+
+	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/instructions", bot.MatchTypeExact, a.handleInstructions)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "instructions", bot.MatchTypeExact, a.handleInstructions)
 }

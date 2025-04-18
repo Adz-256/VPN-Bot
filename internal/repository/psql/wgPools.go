@@ -26,11 +26,11 @@ const (
 	providedIPColumn = "provided_ip"
 )
 
-func (w *WgPeers) GetAccount(ctx context.Context, id int64) (*repoModels.WgPeer, error) {
+func (w *WgPeers) GetUserAccounts(ctx context.Context, userID int64) (*repoModels.WgPeer, error) {
 	query, args, err := w.b.Select(idColumn,
 		userIDColumn, publicKeyColumn,
 		configFileColumn, serverIPColumn,
-		providedIPColumn, createdAtColumn).From(WgPoolsTable).Where(sq.Eq{idColumn: id}).ToSql()
+		providedIPColumn, createdAtColumn).From(WgPoolsTable).Where(sq.Eq{userIDColumn: userID}).ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("cannot build sql query: %v", err)
 	}

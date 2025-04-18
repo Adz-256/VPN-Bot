@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS Payments (
 
 CREATE TABLE IF NOT EXISTS Wg_peers (
     id SERIAL PRIMARY KEY, -- уникальный ID внутри базы
+    name VARCHAR(16) NOT NULL,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- владелец peer-а
     public_key TEXT NOT NULL UNIQUE, -- публичный ключ WireGuard
     config_file TEXT NOT NULL,

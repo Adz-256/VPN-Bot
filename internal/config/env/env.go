@@ -2,20 +2,23 @@ package env
 
 import (
 	"errors"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 var (
-	NoTokenError = (errors.New("no token provided"))
-	NoDsnError   = (errors.New("no dsn provided"))
-	NoEnvError   = (errors.New("no env provided, env set as development"))
+	ErrorNoToken       = (errors.New("no token provided"))
+	ErrorNoDsn         = (errors.New("no dsn provided"))
+	ErrorNoEnv         = (errors.New("no env provided, env set as development"))
+	ErrorWgPathIsEmpty = (errors.New("wireguard config path is empty"))
 )
 
 type Config struct {
-	bot botConfig
-	dsn string
-	env string
+	bot    botConfig
+	dsn    string
+	env    string
+	wgPath string
 }
 
 type botConfig struct {
@@ -42,6 +45,11 @@ func New() (cfg *Config, err error) {
 		return &Config{}, err
 	}
 
+	err = cfg.loadWgConfig()
+	if err != nil {
+		return &Config{}, err
+	}
+
 	return cfg, nil
 }
 
@@ -56,10 +64,14 @@ func (c *Config) Token() string {
 	return c.bot.token
 }
 
+func (c *Config) WgPath() string {
+	return c.wgPath
+}
+
 func (c *Config) loadBotConfig() error {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
-		return NoTokenError
+		return ErrorNoToken
 	}
 	c.bot.token = token
 
@@ -67,9 +79,9 @@ func (c *Config) loadBotConfig() error {
 }
 
 func (c *Config) loadDSNConfig() error {
-	dsn := os.Getenv("BOT_TOKEN")
+	dsn := os.Getenv("DSN")
 	if dsn == "" {
-		return NoDsnError
+		return ErrorNoDsn
 	}
 	c.dsn = dsn
 
@@ -80,9 +92,20 @@ func (c *Config) loadEnvConfig() error {
 	env := os.Getenv("ENV")
 	if env == "" {
 		c.env = "development"
-		return NoEnvError
+		return ErrorNoEnv
 	}
 	c.env = env
+
+	return nil
+}
+
+func (c *Config) loadWgConfig() error {
+	path := os.Getenv("WIREGUARD_CONFIG_PATH")
+	if path == "" {
+		c.wgPath = "etc/wireguard/wg0.conf"
+		return ErrorWgPathIsEmpty
+	}
+	c.wgPath = path
 
 	return nil
 }

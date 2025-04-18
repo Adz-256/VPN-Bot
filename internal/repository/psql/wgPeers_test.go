@@ -28,7 +28,7 @@ func TestWgPools(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	acc, err := pool.GetAccount(context.Background(), id)
+	acc, err := pool.GetUserAccounts(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
 	}

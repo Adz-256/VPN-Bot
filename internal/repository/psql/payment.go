@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	errPaymentIDEmpty = errors.New("payment id is empty")
+	ErrEmptyPaymentID = errors.New("payment id is empty")
 )
 
 func (p *Payments) Create(ctx context.Context, payment *repoModels.Payment) (id int64, err error) {
@@ -61,7 +61,7 @@ func (p *Payments) Update(ctx context.Context, pay *repoModels.Payment) error {
 	}
 
 	if pay.ID == 0 {
-		return errPaymentIDEmpty
+		return ErrEmptyPaymentID
 	}
 
 	query, args, err := p.b.Update(tablePayments).Where(sq.Eq{idColumn: pay.ID}).SetMap(mPay).ToSql()

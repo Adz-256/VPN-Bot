@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+
 	"github.com/Adz-256/cheapVPN/internal/api"
 	"github.com/Adz-256/cheapVPN/internal/config/env"
 	"github.com/Adz-256/cheapVPN/internal/logger/slog"
 	"github.com/Adz-256/cheapVPN/pkg/clients/postgres"
-	"log"
 )
 
 func main() {
