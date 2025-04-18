@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS Plans (
 
 CREATE TABLE IF NOT EXISTS Payments (
     id serial PRIMARY KEY,
+    transaction_id TEXT NOT NULL UNIQUE,
     user_id INT NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
     plan_id INT NOT NULL REFERENCES Plans(id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
