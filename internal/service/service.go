@@ -26,11 +26,6 @@ type SubscriptionService interface {
 	Enable(ctx context.Context, wgPeer *models.WgPeer) error
 }
 
-type FSMService interface {
-	SetState(ctx context.Context, userID string, state string) string
-	GetState(ctx context.Context, userID string) string
-}
-
 type PlanService interface {
 	GetAll(ctx context.Context) (*[]models.Plan, error)
 	GetOneByID(ctx context.Context, id int64) (*models.Plan, error)

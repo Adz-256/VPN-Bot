@@ -16,7 +16,7 @@ import (
 type WgClient struct {
 	interfaceName       string
 	configInterfacePath string
-	addrWithMask        string
+	addr                string
 	port                string
 	Pub                 string
 	lastCreatedIP       string
@@ -38,7 +38,7 @@ const (
 func New(interfaceName string, addr string, port string, configPath string, out string) *WgClient {
 	return &WgClient{
 		interfaceName:       interfaceName,
-		addrWithMask:        addr,
+		addr:                addr,
 		port:                port,
 		configInterfacePath: configPath,
 		lastCreatedIP:       "10.9.0.0/24",
@@ -48,12 +48,13 @@ func New(interfaceName string, addr string, port string, configPath string, out 
 }
 
 func (w *WgClient) AddressWithMask() string {
-	return w.addrWithMask
+	return w.addr
 }
 
 // Init применяется один раз для одного клиента
 func (w *WgClient) Init() error {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 7777)
+	w.initFile()
+	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -66,7 +67,6 @@ func (w *WgClient) Init() error {
 		}
 
 		w.Pub = pub
-		w.lastCreatedIP = w.addrWithMask
 		return nil
 	}
 	_, err = exec.Command(wgQuickCommand, upArg, w.configInterfacePath).Output()
@@ -94,7 +94,7 @@ func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
 
 	cfg := wgInterfacedConfig{
 		PrivateKey: priv,
-		Address:    w.addrWithMask,
+		Address:    w.addr,
 		ListenPort: w.port,
 	}
 
@@ -139,7 +139,7 @@ func (w *WgClient) WriteUserConfig(privClient string, alowIP net.IPNet) (path st
 		ServerPublicKey:  w.Pub,
 		ClientPrivateKey: privClient,
 		ClientAlowedIP:   alowIP.String(),
-		Endpoint:         w.addrWithMask + ":" + w.port,
+		Endpoint:         w.addr + ":" + w.port,
 	}
 
 	w.Lock()
@@ -321,5 +321,18 @@ func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
 		return fmt.Errorf("error flushing buffer: %v", err)
 	}
 
+	return nil
+}
+
+func (w *WgClient) initFile() error {
+	// Проверяем, существует ли файл
+	if _, err := os.Stat(w.configInterfacePath); os.IsNotExist(err) {
+		// Создаём файл с правами 0666 (rw-rw-rw-)
+		file, err := os.OpenFile(w.configInterfacePath, os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
+		defer file.Close()
+	}
 	return nil
 }

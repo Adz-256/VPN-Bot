@@ -141,6 +141,7 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			UserID: pay.UserID,
 			EndAt:  t,
 		}
+		a.l.Debug("CreateAccount", slog.Any("wg", wg))
 		id, err := a.s.sub.CreateAccount(ctx, wg)
 		if err != nil {
 			a.l.Error("CreateAccount error", slog.Any("error", err))
@@ -176,5 +177,16 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			a.l.Error("EditMessageText error", slog.Any("error", err))
 			return
 		}
+	} else {
+		_, err = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: callback.ID,
+			Text:            "Ожидание платежа",
+			ShowAlert:       true,
+		})
+		if err != nil {
+			a.l.Error("AnswerCallbackQuery error", slog.Any("error", err))
+			return
+		}
+
 	}
 }

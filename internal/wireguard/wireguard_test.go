@@ -6,7 +6,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	wg := New("wg0", "127.0.0.1/24", "51820", "config/wg0.conf", "config")
+	wg := New("wg0", "127.0.0.1", "51820", "config/wg0.conf", "config")
 	// err := wg.Init()
 	// if err != nil {
 	// 	t.Fatal(err)

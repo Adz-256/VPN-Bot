@@ -31,7 +31,6 @@ type API struct {
 }
 
 type services struct {
-	fsm  service.FSMService
 	plan service.PlanService
 	pay  service.PaymentService
 	sub  service.SubscriptionService
@@ -76,7 +75,7 @@ func (a *API) Run() error {
 	a.s.pay = payS
 
 	sub := psql.NewWgPools(a.db)
-	wg := wireguard.New(a.cfg.WGInterfaceName(), a.cfg.WGAddr(), a.cfg.WGPort()+"/32", a.cfg.WGPath(), a.cfg.WGOut())
+	wg := wireguard.New(a.cfg.WGInterfaceName(), a.cfg.WGAddr(), a.cfg.WGPort(), a.cfg.WGPath(), a.cfg.WGOut())
 	err = wg.Init()
 	if err != nil {
 		return err
@@ -84,10 +83,6 @@ func (a *API) Run() error {
 	defer wg.Down()
 	subS := subscription.New(sub, wg)
 	a.s.sub = subS
-
-	// f := repoFSM.New(a.db)
-	// fs := fsm.NewFSM(f)
-	// a.s.fsm = fs
 
 	a.registerHandlers()
 

@@ -11,7 +11,7 @@ var (
 		{
 			models.InlineKeyboardButton{
 				Text:         "🇳🇱 Нидерланды",
-				CallbackData: "buy_RU",
+				CallbackData: "buy_NDR",
 			},
 		},
 		{
