@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"log/slog"
+
 	"github.com/Adz-256/cheapVPN/internal/repository"
 	repoModels "github.com/Adz-256/cheapVPN/internal/repository/psql/models"
 	"github.com/Adz-256/cheapVPN/utils"
@@ -72,7 +74,7 @@ func (w *WgPeers) CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) 
 	if err != nil {
 		return 0, fmt.Errorf("cannot build sql query: %v", err)
 	}
-
+	slog.Info("query", slog.String("query", query), slog.Any("args", args))
 	var id int64
 	err = w.db.QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {

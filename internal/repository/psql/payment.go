@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/Adz-256/cheapVPN/internal/repository"
 	repoModels "github.com/Adz-256/cheapVPN/internal/repository/psql/models"
@@ -85,7 +86,7 @@ func (p *Payments) Create(ctx context.Context, payment *repoModels.Payment) (id 
 	if err != nil {
 		return 0, fmt.Errorf("failed to build query: %w", err)
 	}
-
+	slog.Info("query", slog.String("query", query), slog.Any("args", args))
 	err = p.db.QueryRow(ctx, query, args...).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute query: %w", err)

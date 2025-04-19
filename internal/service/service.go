@@ -7,7 +7,8 @@ import (
 )
 
 type PaymentService interface {
-	CreatePayLink(ctx context.Context, user models.User, plan models.Plan, reciver string) (link string, err error)
+	Get(ctx context.Context, transID string) (*models.Payment, error)
+	CreatePayLink(ctx context.Context, user models.User, plan models.Plan, reciver string) (link string, transID string, err error)
 	ApprovePayment(ctx context.Context, transID string) error
 	CancelPayment(ctx context.Context, transID string) error
 }
@@ -33,4 +34,5 @@ type FSMService interface {
 type PlanService interface {
 	GetAll(ctx context.Context) (*[]models.Plan, error)
 	GetOneByID(ctx context.Context, id int64) (*models.Plan, error)
+	GetAllByCounty(ctx context.Context, cntry string) (*[]models.Plan, error)
 }

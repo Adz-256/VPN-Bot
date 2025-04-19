@@ -4,10 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -22,6 +21,7 @@ const (
 )
 
 type Payment struct {
+	umoneyAccount string
 }
 
 type Quickpay struct {
@@ -34,7 +34,9 @@ type Quickpay struct {
 }
 
 func New(umoneyAccount string) *Payment {
-	return &Payment{}
+	return &Payment{
+		umoneyAccount: umoneyAccount,
+	}
 }
 
 // https://yoomoney.ru/quickpay/confirm.xml?receiver=4100117034899495&quickpay-form=shop&targets=Sponsor%20this%20project&paymentType=SB&sum=5
@@ -44,9 +46,13 @@ func (p *Payment) CreatePayLink(qp Quickpay) (link string, transID string, err e
 	if transID == "" {
 		transID = generateTransactionId()
 	}
+	if qp.Recieiver == "" {
+		qp.Recieiver = p.umoneyAccount
+	}
 
 	payURL := configureRequestURL(qp, transID)
 
+	slog.Info("CreatePayLink", slog.String("payURL", payURL))
 	// Создаем POST-запрос по ссылке
 	req, err := http.NewRequest(http.MethodPost, payURL, nil)
 	if err != nil {
@@ -54,7 +60,11 @@ func (p *Payment) CreatePayLink(qp Quickpay) (link string, transID string, err e
 		return "", "", err
 	}
 
-	client := &http.Client{}
+	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		link = req.URL.String()
+		return nil
+	}}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		// логируем, если нужно
@@ -62,18 +72,7 @@ func (p *Payment) CreatePayLink(qp Quickpay) (link string, transID string, err e
 	}
 	defer resp.Body.Close()
 
-	// Example response:
-	// Found. Redirecting to https://...
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		// логируем, если нужно
-		return "", "", err
-	}
-
-	bodySplit := strings.Split(string(b), " ")
-
-	url := bodySplit[4]
-	return url, transID, nil
+	return link, transID, nil
 }
 
 func configureRequestURL(qp Quickpay, transID string) string {

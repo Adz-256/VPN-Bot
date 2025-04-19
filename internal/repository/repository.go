@@ -23,6 +23,7 @@ type WgPoolRepository interface {
 type PlansRepository interface {
 	GetOneByID(ctx context.Context, id int64) (*repoModels.Plan, error)
 	GetAll(ctx context.Context) (*[]repoModels.Plan, error)
+	GetAllByCounty(ctx context.Context, county string) (*[]repoModels.Plan, error)
 }
 
 type PaymentsRepository interface {

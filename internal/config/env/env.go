@@ -2,6 +2,7 @@ package env
 
 import (
 	"errors"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -15,21 +16,36 @@ var (
 )
 
 type Config struct {
-	bot    botConfig
-	dsn    string
-	env    string
-	wgPath string
+	bot botConfig
+	dsn string
+	acc string
+	env string
+	wh  webhookConfig
+	wg  wgConfig
+}
+
+type wgConfig struct {
+	path          string
+	addr          string
+	port          string
+	interfaceName string
+	out           string
 }
 
 type botConfig struct {
 	token string
 }
 
+type webhookConfig struct {
+	addr string
+	port string
+}
+
 func New() (cfg *Config, err error) {
 	cfg = &Config{}
 	err = godotenv.Load(".env")
 	if err != nil {
-		return &Config{}, err
+		slog.Error("Error loading .env file", slog.Any("error", err))
 	}
 
 	err = cfg.loadDSNConfig()
@@ -50,11 +66,23 @@ func New() (cfg *Config, err error) {
 		return &Config{}, err
 	}
 
+	cfg.loadPaymentAccount()
+
+	cfg.loadWhConfig()
+
 	return cfg, nil
 }
 
 func (c *Config) DSN() string {
 	return c.dsn
+}
+
+func (c *Config) WebhookAddress() string {
+	return c.wh.addr
+}
+
+func (c *Config) WebhookPort() string {
+	return c.wh.port
 }
 
 func (c *Config) ENV() string {
@@ -64,8 +92,28 @@ func (c *Config) Token() string {
 	return c.bot.token
 }
 
-func (c *Config) WgPath() string {
-	return c.wgPath
+func (c *Config) WGPath() string {
+	return c.wg.path
+}
+
+func (c *Config) WGAddr() string {
+	return c.wg.addr
+}
+
+func (c *Config) WGPort() string {
+	return c.wg.port
+}
+
+func (c *Config) WGInterfaceName() string {
+	return c.wg.interfaceName
+}
+
+func (c *Config) WGOut() string {
+	return c.wg.out
+}
+
+func (c *Config) PaymentAccount() string {
+	return c.acc
 }
 
 func (c *Config) loadBotConfig() error {
@@ -76,6 +124,15 @@ func (c *Config) loadBotConfig() error {
 	c.bot.token = token
 
 	return nil
+}
+
+func (c *Config) loadPaymentAccount() {
+	acc := os.Getenv("PAYMENT_ACCOUNT")
+	if acc == "" {
+		panic("no payment account provided")
+	}
+
+	c.acc = acc
 }
 
 func (c *Config) loadDSNConfig() error {
@@ -99,13 +156,53 @@ func (c *Config) loadEnvConfig() error {
 	return nil
 }
 
+func (c *Config) loadWhConfig() {
+	addr := os.Getenv("WEBHOOK_ADDRESS")
+	if addr == "" {
+		panic("no webhook address provided")
+	}
+
+	c.wh.addr = addr
+
+	port := os.Getenv("WEBHOOK_PORT")
+	if port == "" {
+		panic("no webhook port provided")
+	}
+
+	c.wh.port = port
+}
+
 func (c *Config) loadWgConfig() error {
 	path := os.Getenv("WIREGUARD_CONFIG_PATH")
 	if path == "" {
-		c.wgPath = "etc/wireguard/wg0.conf"
+		c.wg.path = "etc/wireguard/wg0.conf"
 		return ErrorWgPathIsEmpty
 	}
-	c.wgPath = path
+	c.wg.path = path
+
+	addr := os.Getenv("WIREGUARD_ADDRESS")
+	if addr == "" {
+		panic("no wireguard address provided")
+	}
+	c.wg.addr = addr
+
+	port := os.Getenv("WIREGUARD_PORT")
+	if port == "" {
+		panic("no wireguard port provided")
+	}
+	c.wg.port = port
+
+	interfaceName := os.Getenv("WIREGUARD_INTERFACE_NAME")
+	if interfaceName == "" {
+		panic("no wireguard interface name provided")
+	}
+	c.wg.interfaceName = interfaceName
+
+	out := os.Getenv("WIREGUARD_OUT")
+	if out == "" {
+		panic("no wireguard out provided")
+	}
+	c.wg.out = out
 
 	return nil
 }

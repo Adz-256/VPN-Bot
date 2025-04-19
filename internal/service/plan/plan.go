@@ -31,7 +31,7 @@ func (s *Service) GetAll(ctx context.Context) (*[]models.Plan, error) {
 	for _, plan := range *plans {
 		plansModel = append(plansModel, models.Plan{
 			ID:           plan.ID,
-			Name:         plan.Name,
+			Country:      plan.Country,
 			DurationDays: plan.DurationDays,
 			Price:        plan.Price,
 			Description:  plan.Description,
@@ -49,9 +49,30 @@ func (s *Service) GetOneByID(ctx context.Context, id int64) (*models.Plan, error
 
 	return &models.Plan{
 		ID:           plan.ID,
-		Name:         plan.Name,
+		Country:      plan.Country,
 		DurationDays: plan.DurationDays,
 		Price:        plan.Price,
 		Description:  plan.Description,
 	}, nil
+}
+
+func (s *Service) GetAllByCounty(ctx context.Context, cntry string) (*[]models.Plan, error) {
+	plans, err := s.db.GetAllByCounty(ctx, cntry)
+	if err != nil {
+		return nil, err
+	}
+
+	var plansModel []models.Plan
+
+	for _, plan := range *plans {
+		plansModel = append(plansModel, models.Plan{
+			ID:           plan.ID,
+			Country:      plan.Country,
+			DurationDays: plan.DurationDays,
+			Price:        plan.Price,
+			Description:  plan.Description,
+		})
+	}
+
+	return &plansModel, nil
 }

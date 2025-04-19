@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/Adz-256/cheapVPN/internal/models"
 	paymentImpl "github.com/Adz-256/cheapVPN/internal/payment"
@@ -21,7 +23,7 @@ type Service struct {
 }
 
 const (
-	approved = "approved"
+	paid     = "paid"
 	canceled = "canceled"
 )
 
@@ -30,6 +32,10 @@ var (
 	ErrPaymentAlreadyApproved = errors.New("payment already approved")
 	ErrPaymentAlreadyCanceled = errors.New("payment already canceled")
 )
+
+func New(db repository.PaymentsRepository, paymentImpl paymentImpl.Payment) *Service {
+	return &Service{db: db, Payment: paymentImpl}
+}
 
 // ApprovePayment implements service.PaymentService.
 func (s *Service) ApprovePayment(ctx context.Context, transID string) (err error) {
@@ -40,11 +46,12 @@ func (s *Service) ApprovePayment(ctx context.Context, transID string) (err error
 
 	if p.Status == canceled {
 		return ErrPaymentCanceled
-	} else if p.Status == approved {
+	} else if p.Status == paid {
 		return ErrPaymentAlreadyApproved
 	}
 
-	p.Status = approved
+	p.Status = paid
+	p.PaidAt.Time = time.Now()
 	err = s.db.Update(ctx, p)
 	if err != nil {
 		return fmt.Errorf("cannot update payment: %v", err)
@@ -62,7 +69,7 @@ func (s *Service) CancelPayment(ctx context.Context, transID string) error {
 
 	if p.Status == canceled {
 		return ErrPaymentAlreadyCanceled
-	} else if p.Status == approved {
+	} else if p.Status == paid {
 		return ErrPaymentAlreadyApproved
 	}
 	p.Status = canceled
@@ -74,32 +81,55 @@ func (s *Service) CancelPayment(ctx context.Context, transID string) error {
 	return nil
 }
 
+func (s *Service) Get(ctx context.Context, transID string) (*models.Payment, error) {
+	p, err := s.db.Get(ctx, transID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get payment: %v", err)
+	}
+
+	return &models.Payment{
+		ID:        p.ID,
+		TransID:   p.TransID,
+		UserID:    p.UserID,
+		PlanID:    p.PlanID,
+		Amount:    p.Amount,
+		Method:    p.Method,
+		Status:    p.Status,
+		CreatedAt: p.CreatedAt,
+		PaidAt:    p.PaidAt,
+	}, nil
+}
+
 // CreatePayLink implements service.PaymentService.
-func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan models.Plan, reciver string) (link string, err error) {
+func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan models.Plan, reciver string) (link string, transID string, err error) {
 
 	ump := umoney.Quickpay{
 		Recieiver:    reciver,
 		QuickpayForm: "shop",
-		Targets:      plan.Name,
+		Targets:      plan.Country,
 		PaymentType:  "SB",
 		Sum:          plan.Price.String(),
 	}
 
-	link, transID, err := s.Payment.CreatePayLink(ump)
+	link, transID, err = s.Payment.CreatePayLink(ump)
 	if err != nil {
-		return "", fmt.Errorf("cannot create payment: %v", err)
-	}
-	_, err = s.db.Create(ctx, &repoModels.Payment{
-		UserID:  user.ID,
-		TransID: transID,
-		PlanID:  plan.ID,
-		Status:  "created",
-		Amount:  plan.Price,
-		Method:  "uMoney",
-	})
-	if err != nil {
-		return "", fmt.Errorf("cannot create payment: %v", err)
+		return "", "", fmt.Errorf("cannot create payment: %v", err)
 	}
 
-	return link, nil
+	payment := &repoModels.Payment{
+		UserID:  user.UserID,
+		TransID: transID,
+		PlanID:  plan.ID,
+		Amount:  plan.Price,
+		Method:  "uMoney",
+	}
+
+	slog.Info("create payment", slog.Any("payment", payment))
+
+	_, err = s.db.Create(ctx, payment)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot create payment: %v", err)
+	}
+
+	return link, transID, nil
 }

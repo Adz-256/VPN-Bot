@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS Users (
 
 CREATE TABLE IF NOT EXISTS Plans (
     id serial primary key,
-    name text NOT NULL UNIQUE,
+    country VARCHAR(3) NOT NULL,
     duration_days integer NOT NULL CHECK ( duration_days > 0 ),
     price DECIMAL(10,2),
     description TEXT
@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS Plans (
 CREATE TABLE IF NOT EXISTS Payments (
     id serial PRIMARY KEY,
     transaction_id TEXT NOT NULL UNIQUE,
-    user_id INT NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
-    plan_id INT NOT NULL REFERENCES Plans(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES Users(chat_id) ON DELETE CASCADE,
+    plan_id BIGINT NOT NULL REFERENCES Plans(id) ON DELETE CASCADE,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
     status TEXT NOT NULL CHECK (status IN ('pending', 'canceled', 'paid')) DEFAULT 'pending',
     method TEXT NOT NULL,
@@ -30,8 +30,7 @@ CREATE TABLE IF NOT EXISTS Payments (
 
 CREATE TABLE IF NOT EXISTS Wg_peers (
     id SERIAL PRIMARY KEY, -- уникальный ID внутри базы
-    name VARCHAR(16) NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- владелец peer-а
+    user_id BIGINT NOT NULL REFERENCES users(chat_id) ON DELETE CASCADE, -- владелец peer-а
     public_key TEXT NOT NULL UNIQUE, -- публичный ключ WireGuard
     config_file TEXT NOT NULL,
     server_ip inet NOT NULL,

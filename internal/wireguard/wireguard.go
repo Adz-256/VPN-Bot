@@ -41,14 +41,19 @@ func New(interfaceName string, addr string, port string, configPath string, out 
 		addrWithMask:        addr,
 		port:                port,
 		configInterfacePath: configPath,
+		lastCreatedIP:       "10.9.0.0/24",
 		configOutPath:       out,
 		Mutex:               &sync.Mutex{},
 	}
 }
 
+func (w *WgClient) AddressWithMask() string {
+	return w.addrWithMask
+}
+
 // Init применяется один раз для одного клиента
 func (w *WgClient) Init() error {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 7777)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}

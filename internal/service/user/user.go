@@ -24,7 +24,7 @@ func New(db repository.UserRepository) *Service {
 func (u *Service) Create(ctx context.Context, user *models.User) (int64, error) {
 	repoUser := repoModels.User{
 		ID:        user.ID,
-		ChatID:    user.ChatID,
+		ChatID:    user.UserID,
 		Username:  user.Username,
 		IsAdmin:   user.IsAdmin,
 		CreatedAt: user.CreatedAt,
@@ -39,7 +39,7 @@ func (u *Service) GetUser(ctx context.Context, id int64) (*models.User, error) {
 	}
 	return &models.User{
 		ID:        repoUser.ID,
-		ChatID:    repoUser.ChatID,
+		UserID:    repoUser.ChatID,
 		Username:  repoUser.Username,
 		IsAdmin:   repoUser.IsAdmin,
 		CreatedAt: repoUser.CreatedAt,

@@ -10,9 +10,10 @@ import (
 // strcuts to interact with service layer
 type Payment struct {
 	ID        int64
+	TransID   string
 	UserID    int64
 	PlanID    int64
-	Amount    float64
+	Amount    decimal.Decimal
 	Status    string
 	Method    string
 	CreatedAt time.Time
@@ -21,7 +22,7 @@ type Payment struct {
 
 type Plan struct {
 	ID           int64
-	Name         string
+	Country      string
 	DurationDays int
 	Price        decimal.Decimal
 	Description  string
@@ -29,7 +30,7 @@ type Plan struct {
 
 type User struct {
 	ID        int64
-	ChatID    int64
+	UserID    int64
 	Username  string
 	IsAdmin   bool
 	CreatedAt time.Time

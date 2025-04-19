@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -36,7 +37,7 @@ func StructToMap(s any, full bool) (map[string]any, error) {
 
 		if field.IsZero() {
 			if full && !isOmitempty(tags) {
-				return nil, ErrorMustBeValue
+				return nil, fmt.Errorf("%s - is empty %v", tags, ErrorMustBeValue)
 			}
 			if !full || isOmitempty(tags) {
 				continue

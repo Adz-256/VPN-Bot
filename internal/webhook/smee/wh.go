@@ -1,12 +1,10 @@
 package smee
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 )
 
@@ -38,30 +36,28 @@ func New(addr, port string) *wh {
 	}
 }
 
-func (w *wh) Run() chan map[string]any {
-	ch := make(chan map[string]any, 1024)
+func (w *wh) Run(ch chan map[string]any) {
 
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", w.addr, w.port))
-	if err != nil {
-		log.Panic(err)
-	}
-
-	for {
-		conn, err := lis.Accept()
-		reader := bufio.NewReader(conn)
-		r, _ := http.ReadRequest(reader)
-		if err != nil {
-			log.Panic(err)
-		}
-
+	http.HandleFunc("/", func(wr http.ResponseWriter, r *http.Request) {
 		var result map[string]any
-		b, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(b, &result)
+		defer r.Body.Close()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("error reading body: %v", err)
+			return
+		}
+		err = json.Unmarshal(body, &result)
+		if err != nil {
+			log.Printf("error unmarshaling json: %v", err)
+			return
+		}
+		log.Printf("Received webhook: %+v", result)
+		ch <- result
+	})
 
-		go func() {
-			ch <- result
-		}()
-	}
+	addr := fmt.Sprintf(":%s", w.port)
+	log.Printf("Listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 func MapToNotification(m map[string]any) (SmeeNotification, error) {

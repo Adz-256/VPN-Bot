@@ -41,7 +41,7 @@ func (s *Service) CreateAccount(ctx context.Context, wgPeer *models.WgPeer) (int
 		return 0, fmt.Errorf("cannot create wg peer: %v", err)
 	}
 
-	_, serverIP, err := net.ParseCIDR(s.wg.Pub)
+	_, serverIP, err := net.ParseCIDR(s.wg.AddressWithMask())
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse server ip: %v", err)
 	}
@@ -65,6 +65,7 @@ func (s *Service) CreateAccount(ctx context.Context, wgPeer *models.WgPeer) (int
 		ConfigFile: path,
 		ServerIP:   *serverIP,
 		ProvidedIP: *provIP,
+		EndAt:      wgPeer.EndAt,
 	}
 	return s.db.CreateAccount(ctx, &wgPeerRepo)
 }
