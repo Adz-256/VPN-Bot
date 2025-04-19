@@ -6,6 +6,7 @@ import (
 
 	repoModels "github.com/Adz-256/cheapVPN/internal/repository/psql/models"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/shopspring/decimal"
 )
 
 func TestPayments(t *testing.T) {
@@ -21,7 +22,7 @@ func TestPayments(t *testing.T) {
 	pay := &repoModels.Payment{
 		UserID: 1,
 		PlanID: 1,
-		Amount: 1000,
+		Amount: decimal.NewFromInt(1000),
 		Method: "card",
 	}
 
@@ -32,7 +33,7 @@ func TestPayments(t *testing.T) {
 	}
 
 	pay.ID = id
-	pay.Amount = 2000
+	pay.Amount = decimal.NewFromInt(2000)
 
 	err = p.Update(ctx, pay)
 	if err != nil {
