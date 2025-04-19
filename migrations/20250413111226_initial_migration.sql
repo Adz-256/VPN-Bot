@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS Payments (
     paid_at timestamptz
 );
 
-
 CREATE TABLE IF NOT EXISTS Wg_peers (
     id SERIAL PRIMARY KEY, -- уникальный ID внутри базы
     name VARCHAR(16) NOT NULL,
@@ -37,7 +36,8 @@ CREATE TABLE IF NOT EXISTS Wg_peers (
     config_file TEXT NOT NULL,
     server_ip inet NOT NULL,
     provided_ip inet NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_at TIMESTAMP NOT NULL
 );
 
 

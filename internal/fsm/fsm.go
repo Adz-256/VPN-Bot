@@ -6,5 +6,5 @@ import (
 
 type Interface interface {
 	SetState(ctx context.Context, userID string, state string) string
-	State(ctx context.Context, userID string) string
+	GetState(ctx context.Context, userID string) string
 }

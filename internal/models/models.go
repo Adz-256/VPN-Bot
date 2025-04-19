@@ -37,10 +37,12 @@ type User struct {
 
 type WgPeer struct {
 	ID         int64
+	Name       string
 	UserID     int64
 	PublicKey  string
 	ConfigFile string
 	ServerIP   string
 	ProvidedIP string
 	CreatedAt  time.Time
+	EndAt      time.Time
 }

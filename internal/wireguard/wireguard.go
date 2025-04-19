@@ -1,8 +1,9 @@
-package wg
+package wireguard
 
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,12 +14,13 @@ import (
 )
 
 type WgClient struct {
-	interfaceName string
-	configPath    string
-	addrWithMask  string
-	port          string
-	pub           string
-	lastCreatedIP string
+	interfaceName       string
+	configInterfacePath string
+	addrWithMask        string
+	port                string
+	Pub                 string
+	lastCreatedIP       string
+	configOutPath       string
 	*sync.Mutex
 }
 
@@ -33,19 +35,20 @@ const (
 	wgSetConf      = "setconf"
 )
 
-func New(interfaceName string, addr string, port string, configPath string) *WgClient {
+func New(interfaceName string, addr string, port string, configPath string, out string) *WgClient {
 	return &WgClient{
-		interfaceName: interfaceName,
-		addrWithMask:  addr,
-		port:          port,
-		configPath:    configPath,
-		Mutex:         &sync.Mutex{},
+		interfaceName:       interfaceName,
+		addrWithMask:        addr,
+		port:                port,
+		configInterfacePath: configPath,
+		configOutPath:       out,
+		Mutex:               &sync.Mutex{},
 	}
 }
 
 // Init применяется один раз для одного клиента
 func (w *WgClient) Init() error {
-	f, err := os.OpenFile(w.configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -57,11 +60,11 @@ func (w *WgClient) Init() error {
 			return fmt.Errorf("cannot create wg interface: %v", err)
 		}
 
-		w.pub = pub
+		w.Pub = pub
 		w.lastCreatedIP = w.addrWithMask
 		return nil
 	}
-	_, err = exec.Command(wgQuickCommand, upArg, w.configPath).Output()
+	_, err = exec.Command(wgQuickCommand, upArg, w.configInterfacePath).Output()
 	if err != nil {
 		return fmt.Errorf("cannot start wg interface: %v", err)
 	}
@@ -69,11 +72,11 @@ func (w *WgClient) Init() error {
 }
 
 func (w *WgClient) Down() {
-	exec.Command(wgQuickCommand, downArg, w.configPath).Run()
+	exec.Command(wgQuickCommand, downArg, w.configInterfacePath).Run()
 }
 
 func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
-	f, err := os.OpenFile(w.configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return "", fmt.Errorf("cannot open file: %v", err)
 	}
@@ -84,7 +87,7 @@ func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
 		return "", fmt.Errorf("cannot generate keys: %v", err)
 	}
 
-	cfg := WgInterfacedConfig{
+	cfg := wgInterfacedConfig{
 		PrivateKey: priv,
 		Address:    w.addrWithMask,
 		ListenPort: w.port,
@@ -106,40 +109,75 @@ func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
 	return pub, nil
 }
 
-func (w *WgClient) CreateWgPeer() (privClient, pubClient string, err error) {
-	f, err := os.OpenFile(w.configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (w *WgClient) WriteUserConfig(privClient string, alowIP net.IPNet) (path string, err error) {
+	safePriv := strings.ReplaceAll(privClient, "/", "_")
+	path = w.configOutPath + "/" + safePriv + ".conf"
+
+	// Гарантируем, что директория существует
+	err = os.MkdirAll(w.configOutPath, os.ModePerm)
 	if err != nil {
-		return "", "", fmt.Errorf("cannot open file: %v", err)
+		return "", fmt.Errorf("cannot create config directory: %v", err)
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return "", fmt.Errorf("cannot open file: %v", err)
+	}
+	defer f.Close()
+
+	tmpl, err := template.New("wgUserConfig").Parse(wgUserConfigTemplate)
+	if err != nil {
+		return "", fmt.Errorf("cannot create template: %v", err)
+	}
+
+	cfg := wgUserConfig{
+		ServerPublicKey:  w.Pub,
+		ClientPrivateKey: privClient,
+		ClientAlowedIP:   alowIP.String(),
+		Endpoint:         w.addrWithMask + ":" + w.port,
+	}
+
+	w.Lock()
+	defer w.Unlock()
+
+	err = tmpl.Execute(f, cfg)
+	return path, err
+}
+
+func (w *WgClient) CreateWgPeer() (allowedIP, privClient, pubClient string, err error) {
+	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", "", "", fmt.Errorf("cannot open file: %v", err)
 	}
 	defer f.Close()
 	pubClient, privClient, err = generateKeys()
 	if err != nil {
-		return "", "", fmt.Errorf("cannot generate keys: %v", err)
+		return "", "", "", fmt.Errorf("cannot generate keys: %v", err)
 	}
 
 	w.Lock()
-	allowedIP, err := utils.IncrIP(w.lastCreatedIP)
+	allowedIP, err = utils.IncrIP(w.lastCreatedIP)
 	if err != nil {
-		return "", "", fmt.Errorf("cannot increment ip: %v", err)
+		return "", "", "", fmt.Errorf("cannot increment ip: %v", err)
 	}
 	w.lastCreatedIP = allowedIP
 	w.Unlock()
 
-	cfg := WgPeerConfig{
+	cfg := wgPeerConfig{
 		PublicKey:  pubClient,
 		AllowedIPs: allowedIP,
 	}
 
 	tmpl, err := template.New("wgPeerConfig").Parse(wgPeerConfigTemplate)
 	if err != nil {
-		return "", "", fmt.Errorf("cannot create template: %v", err)
+		return "", "", "", fmt.Errorf("cannot create template: %v", err)
 	}
 	err = tmpl.Execute(f, cfg)
 	if err != nil {
-		return "", "", fmt.Errorf("cannot execute template with given data: %v", err)
+		return "", "", "", fmt.Errorf("cannot execute template with given data: %v", err)
 	}
 
-	return privClient, pubClient, nil
+	return allowedIP, privClient, pubClient, nil
 }
 
 func generateKeys() (pub, priv string, err error) {
@@ -170,7 +208,7 @@ func generateKeys() (pub, priv string, err error) {
 
 // RemovePeer удаляет пир из конфигурационного файла wg0.conf по публичному ключу.
 func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
-	f, err := os.OpenFile(w.configPath, os.O_RDWR, 0644)
+	f, err := os.OpenFile(w.configInterfacePath, os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -201,7 +239,7 @@ func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
 	}
 
 	// Перезаписываем файл с удалённым пиром
-	err = os.Truncate(w.configPath, 0)
+	err = os.Truncate(w.configInterfacePath, 0)
 	if err != nil {
 		return fmt.Errorf("cannot truncate file: %v", err)
 	}
@@ -226,7 +264,7 @@ func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
 }
 
 func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
-	f, err := os.OpenFile(w.configPath, os.O_RDWR, 0644)
+	f, err := os.OpenFile(w.configInterfacePath, os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -257,7 +295,7 @@ func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
 	}
 
 	// Перезаписываем файл с удалённым пиром
-	err = os.Truncate(w.configPath, 0)
+	err = os.Truncate(w.configInterfacePath, 0)
 	if err != nil {
 		return fmt.Errorf("cannot truncate file: %v", err)
 	}

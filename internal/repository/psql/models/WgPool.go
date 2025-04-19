@@ -13,4 +13,5 @@ type WgPeer struct {
 	ServerIP   net.IPNet `db:"server_ip"`            // inet
 	ProvidedIP net.IPNet `db:"provided_ip"`          // inet
 	CreatedAt  time.Time `db:"created_at,omitempty"` // timestamp
+	EndAt      time.Time `db:"end_at,omitempty"`     // timestamp
 }

@@ -14,7 +14,7 @@ type UserRepository interface {
 }
 
 type WgPoolRepository interface {
-	GetUserAccounts(ctx context.Context, userID int64) (*repoModels.WgPeer, error)
+	GetUserAccounts(ctx context.Context, userID int64) (*[]repoModels.WgPeer, error)
 	CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) (int64, error)
 	UpdateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) error
 	DeleteAccount(ctx context.Context, id int64) error
@@ -28,4 +28,5 @@ type PlansRepository interface {
 type PaymentsRepository interface {
 	Create(ctx context.Context, payment *repoModels.Payment) (id int64, err error)
 	Update(ctx context.Context, payment *repoModels.Payment) error
+	Get(ctx context.Context, transID string) (*repoModels.Payment, error)
 }

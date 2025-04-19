@@ -41,6 +41,6 @@ func (f *fsm) SetState(ctx context.Context, userID string, state string) error {
 
 // GetState retrieves the state associated with the given userID from Redis.
 // It returns the state as a string.
-func (f *fsm) State(ctx context.Context, userID string) string {
+func (f *fsm) GetState(ctx context.Context, userID string) string {
 	return f.client.HGet(ctx, userID, stateField).Val()
 }

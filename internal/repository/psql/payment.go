@@ -29,11 +29,51 @@ const (
 	methodColumns   = "method"
 	createdAtColumn = "created_at"
 	paidAtColumn    = "paid_at"
+	transIDColumn   = "transaction_id"
 )
 
 var (
 	ErrEmptyPaymentID = errors.New("payment id is empty")
 )
+
+func (p *Payments) Get(ctx context.Context, transID string) (*repoModels.Payment, error) {
+	if transID == "" {
+		return nil, ErrEmptyPaymentID
+	}
+
+	query, args, err := p.b.Select(
+		idColumn,
+		transIDColumn,
+		userIDColumn,
+		planIDColumn,
+		amountColumn,
+		statusColumn,
+		methodColumns,
+		createdAtColumn,
+		paidAtColumn,
+	).From(tablePayments).Where(sq.Eq{transIDColumn: transID}).ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("cannot build sql query: %v", err)
+	}
+
+	var payment repoModels.Payment
+	err = p.db.QueryRow(ctx, query, args...).Scan(
+		&payment.ID,
+		&payment.TransID,
+		&payment.UserID,
+		&payment.PlanID,
+		&payment.Amount,
+		&payment.Status,
+		&payment.Method,
+		&payment.CreatedAt,
+		&payment.PaidAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("cannot execute sql query: %v", err)
+	}
+
+	return &payment, nil
+}
 
 func (p *Payments) Create(ctx context.Context, payment *repoModels.Payment) (id int64, err error) {
 	mPay, err := utils.StructToMap(payment, true)

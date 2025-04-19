@@ -24,23 +24,42 @@ const (
 	configFileColumn = "config_file"
 	serverIPColumn   = "server_ip"
 	providedIPColumn = "provided_ip"
+	endAtColumn      = "end_at"
 )
 
-func (w *WgPeers) GetUserAccounts(ctx context.Context, userID int64) (*repoModels.WgPeer, error) {
+func (w *WgPeers) GetUserAccounts(ctx context.Context, userID int64) (*[]repoModels.WgPeer, error) {
 	query, args, err := w.b.Select(idColumn,
 		userIDColumn, publicKeyColumn,
 		configFileColumn, serverIPColumn,
-		providedIPColumn, createdAtColumn).From(WgPoolsTable).Where(sq.Eq{userIDColumn: userID}).ToSql()
+		providedIPColumn, createdAtColumn, endAtColumn).From(WgPoolsTable).Where(sq.Eq{userIDColumn: userID}).ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("cannot build sql query: %v", err)
 	}
-	var wgPeer repoModels.WgPeer
-	err = w.db.QueryRow(ctx, query, args...).Scan(&wgPeer.ID, &wgPeer.UserID, &wgPeer.PublicKey, &wgPeer.ConfigFile, &wgPeer.ServerIP, &wgPeer.ProvidedIP, &wgPeer.CreatedAt)
+	rows, err := w.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute sql query: %v", err)
 	}
+	defer rows.Close()
 
-	return &wgPeer, nil
+	var wgPeers []repoModels.WgPeer
+	for rows.Next() {
+		var wgPeer repoModels.WgPeer
+
+		err := rows.Scan(&wgPeer.ID, &wgPeer.UserID, &wgPeer.PublicKey,
+			&wgPeer.ConfigFile, &wgPeer.ServerIP, &wgPeer.ProvidedIP,
+			&wgPeer.CreatedAt, &wgPeer.EndAt)
+		if err != nil {
+			return nil, fmt.Errorf("cannot scan row: %v", err)
+		}
+
+		wgPeers = append(wgPeers, wgPeer)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %v", err)
+	}
+
+	return &wgPeers, nil
 }
 
 func (w *WgPeers) CreateAccount(ctx context.Context, wgPeer *repoModels.WgPeer) (int64, error) {
