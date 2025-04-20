@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 
 	"github.com/Adz-256/cheapVPN/internal/models"
 	"github.com/Adz-256/cheapVPN/internal/repository"
@@ -41,12 +40,7 @@ func (s *Service) CreateAccount(ctx context.Context, wgPeer *models.WgPeer) (int
 		return 0, fmt.Errorf("cannot create wg peer: %v", err)
 	}
 
-	_, provIP, err := net.ParseCIDR(allowedIP)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse provided ip: %v", err)
-	}
-
-	path, err := s.wg.WriteUserConfig(priv, *provIP)
+	path, err := s.wg.WriteUserConfig(priv, allowedIP)
 	if err != nil {
 		return 0, fmt.Errorf("cannot write user config: %v", err)
 	}
@@ -59,8 +53,8 @@ func (s *Service) CreateAccount(ctx context.Context, wgPeer *models.WgPeer) (int
 		UserID:     wgPeer.UserID,
 		PublicKey:  pub,
 		ConfigFile: path,
-		ServerIP:   net.IPNet{IP: net.ParseIP(s.wg.AddressWithMask())},
-		ProvidedIP: *provIP,
+		ServerIP:   s.wg.AddressWithMask(),
+		ProvidedIP: allowedIP,
 		EndAt:      wgPeer.EndAt,
 	}
 	return s.db.CreateAccount(ctx, &wgPeerRepo)
@@ -85,8 +79,8 @@ func (s *Service) GetUserAccounts(ctx context.Context, userID int64) (*[]models.
 			ID:         v.ID,
 			PublicKey:  v.PublicKey,
 			ConfigFile: v.ConfigFile,
-			ServerIP:   v.ServerIP.String(),
-			ProvidedIP: v.ProvidedIP.String(),
+			ServerIP:   v.ServerIP,
+			ProvidedIP: v.ProvidedIP,
 			CreatedAt:  v.CreatedAt,
 			EndAt:      v.EndAt,
 		})

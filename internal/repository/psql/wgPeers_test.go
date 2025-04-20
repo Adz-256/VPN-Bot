@@ -2,8 +2,8 @@ package psql
 
 import (
 	"context"
-	"net"
 	"testing"
+	"time"
 
 	repoModels "github.com/Adz-256/cheapVPN/internal/repository/psql/models"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -18,11 +18,12 @@ func TestWgPools(t *testing.T) {
 	pool := NewWgPools(db)
 
 	id, err := pool.CreateAccount(context.Background(), &repoModels.WgPeer{
-		UserID:     1,
-		PublicKey:  "12312",
+		UserID:     1234124124,
+		PublicKey:  "123121",
 		ConfigFile: "test",
-		ServerIP:   net.IPNet{IP: net.ParseIP("127.0.0.1")},
-		ProvidedIP: net.IPNet{IP: net.ParseIP("127.0.0.1")},
+		ServerIP:   "127.0.0.1",
+		ProvidedIP: "127.0.0.1",
+		EndAt:      time.Now(),
 	})
 	if err != nil {
 		t.Fatal(err)

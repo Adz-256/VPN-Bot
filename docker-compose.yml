@@ -15,15 +15,16 @@ services:
       - pgdata:/var/lib/postgresql/data
     
   bot:
-    image: binaryrat/vpnbot:mvp
+    build: .
     container_name: bot
+    privileged: true
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     ports:
     - "3000:3000"
-    - "51820:51820/tcp"
-    - "51820:51820/udp"
+    - "51825:51820/tcp"
+    - "51825:51820/udp"
     environment:
       - DSN=postgres://postgres:postgres@postgres:5432/cheapvpn
     depends_on:
