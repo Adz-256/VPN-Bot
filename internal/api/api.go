@@ -68,11 +68,13 @@ func (a *API) Run() error {
 	u := psql.NewUsers(a.db)
 	uS := user.New(u)
 	a.s.user = uS
+	a.l.Info("users service created")
 
 	pay := psql.NewPayments(a.db)
 	um := umoney.New(a.cfg.PaymentAccount())
 	payS := payment.New(pay, um)
 	a.s.pay = payS
+	a.l.Info("payment service created")
 
 	sub := psql.NewWgPools(a.db)
 	wg := wireguard.New(a.cfg.WGInterfaceName(), a.cfg.WGAddr(), a.cfg.WGPort(), a.cfg.WGPath(), a.cfg.WGOut())
@@ -119,6 +121,7 @@ func (a *API) registerHandlers() {
 	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/support", bot.MatchTypeExact, a.handleSupport)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "support", bot.MatchTypeExact, a.handleSupport)
 
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "test", bot.MatchTypeExact, a.handleTest)
 	//a.b.RegisterHandler(bot.HandlerTypeMessageText, "/subscriptions", bot.MatchTypeExact, a.handleSubscriptions)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "subscriptions", bot.MatchTypeExact, a.handleSubscriptions)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "show_", bot.MatchTypePrefix, a.handleShow)

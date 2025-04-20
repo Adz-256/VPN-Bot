@@ -161,7 +161,6 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 		_, err = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: callback.ID,
 			Text:            text.BuyAlreadyCanceled,
-			ShowAlert:       true,
 		})
 		if err != nil {
 			a.l.Error("AnswerCallbackQuery error", slog.Any("error", err))
@@ -181,7 +180,6 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 		_, err = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: callback.ID,
 			Text:            "Ожидание платежа",
-			ShowAlert:       true,
 		})
 		if err != nil {
 			a.l.Error("AnswerCallbackQuery error", slog.Any("error", err))

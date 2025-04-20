@@ -18,6 +18,12 @@ var (
 		},
 		{
 			models.InlineKeyboardButton{
+				Text:         "Попробовать VPN",
+				CallbackData: "test",
+			},
+		},
+		{
+			models.InlineKeyboardButton{
 				Text:         "Поддержка",
 				CallbackData: "support",
 			},
