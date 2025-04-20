@@ -4,6 +4,7 @@ const wgInterfaceConfigTemplate = `[Interface]
 PrivateKey = {{ .PrivateKey }}
 Address = {{ .Address }}
 ListenPort = {{ .ListenPort }}
+PostUp = {{ .PostUp }}
 
 `
 
@@ -30,6 +31,7 @@ type wgInterfacedConfig struct {
 	PrivateKey string
 	Address    string
 	ListenPort string
+	PostUp     string
 }
 
 type wgPeerConfig struct {

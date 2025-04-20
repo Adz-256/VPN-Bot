@@ -3,7 +3,6 @@ package wireguard
 import (
 	"bufio"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,6 +25,7 @@ type WgClient struct {
 
 const (
 	wgCommand      = "wg"
+	syncconfArg    = "syncconf"
 	wgQuickCommand = "wg-quick"
 	upArg          = "up"
 	downArg        = "down"
@@ -33,6 +33,8 @@ const (
 	genArg         = "genkey"
 	showArg        = "show"
 	wgSetConf      = "setconf"
+	postUP         = "PostUp"
+	postUpcmds     = "iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i %s -j ACCEPT; iptables -A FORWARD -o %s -j ACCEPT; iptables -t nat -A PREROUTING -p udp --dport 51825 -j REDIRECT --to-port 51820" //allowedips with mask; port; interfacename; intefacename
 )
 
 func New(interfaceName string, addr string, port string, configPath string, out string) *WgClient {
@@ -41,7 +43,7 @@ func New(interfaceName string, addr string, port string, configPath string, out 
 		addr:                addr,
 		port:                port,
 		configInterfacePath: configPath,
-		lastCreatedIP:       "10.9.0.0/24",
+		lastCreatedIP:       "10.9.0.1/32",
 		configOutPath:       out,
 		Mutex:               &sync.Mutex{},
 	}
@@ -54,7 +56,7 @@ func (w *WgClient) AddressWithMask() string {
 // Init применяется один раз для одного клиента
 func (w *WgClient) Init() error {
 	w.initFile()
-	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s.conf", w.configInterfacePath, w.interfaceName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -67,11 +69,10 @@ func (w *WgClient) Init() error {
 		}
 
 		w.Pub = pub
-		return nil
 	}
-	_, err = exec.Command(wgQuickCommand, upArg, w.configInterfacePath).Output()
+	out, err := exec.Command(wgQuickCommand, upArg, w.configInterfacePath+"/"+w.interfaceName+".conf").Output()
 	if err != nil {
-		return fmt.Errorf("cannot start wg interface: %v", err)
+		return fmt.Errorf("cannot start wg interface: %v %s", out, err)
 	}
 	return nil
 }
@@ -81,7 +82,7 @@ func (w *WgClient) Down() {
 }
 
 func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return "", fmt.Errorf("cannot open file: %v", err)
 	}
@@ -94,8 +95,9 @@ func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
 
 	cfg := wgInterfacedConfig{
 		PrivateKey: priv,
-		Address:    w.addr,
+		Address:    "10.9.0.1/24",
 		ListenPort: w.port,
+		PostUp:     fmt.Sprintf(postUpcmds, "10.9.0.0/24", w.interfaceName, w.interfaceName),
 	}
 
 	tmpl, err := template.New("wgInterfaceConfig").Parse(wgInterfaceConfigTemplate)
@@ -114,7 +116,7 @@ func (w *WgClient) CreateWgInterface() (pubInterface string, err error) {
 	return pub, nil
 }
 
-func (w *WgClient) WriteUserConfig(privClient string, alowIP net.IPNet) (path string, err error) {
+func (w *WgClient) WriteUserConfig(privClient string, alowIP string) (path string, err error) {
 	safePriv := strings.ReplaceAll(privClient, "/", "_")
 	path = w.configOutPath + "/" + safePriv + ".conf"
 
@@ -138,8 +140,8 @@ func (w *WgClient) WriteUserConfig(privClient string, alowIP net.IPNet) (path st
 	cfg := wgUserConfig{
 		ServerPublicKey:  w.Pub,
 		ClientPrivateKey: privClient,
-		ClientAlowedIP:   alowIP.String(),
-		Endpoint:         w.addr + ":" + w.port,
+		ClientAlowedIP:   alowIP,
+		Endpoint:         w.addr + ":" + "51825",
 	}
 
 	w.Lock()
@@ -150,7 +152,7 @@ func (w *WgClient) WriteUserConfig(privClient string, alowIP net.IPNet) (path st
 }
 
 func (w *WgClient) CreateWgPeer() (allowedIP, privClient, pubClient string, err error) {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return "", "", "", fmt.Errorf("cannot open file: %v", err)
 	}
@@ -180,6 +182,10 @@ func (w *WgClient) CreateWgPeer() (allowedIP, privClient, pubClient string, err 
 	err = tmpl.Execute(f, cfg)
 	if err != nil {
 		return "", "", "", fmt.Errorf("cannot execute template with given data: %v", err)
+	}
+	err = w.wgSyncConfig()
+	if err != nil {
+		return "", "", "", fmt.Errorf("cannot sync config: %v", err)
 	}
 
 	return allowedIP, privClient, pubClient, nil
@@ -213,7 +219,7 @@ func generateKeys() (pub, priv string, err error) {
 
 // RemovePeer удаляет пир из конфигурационного файла wg0.conf по публичному ключу.
 func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_RDWR, 0644)
+	f, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -244,7 +250,7 @@ func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
 	}
 
 	// Перезаписываем файл с удалённым пиром
-	err = os.Truncate(w.configInterfacePath, 0)
+	err = os.Truncate(w.configInterfacePath+"/"+w.interfaceName+".conf", 0)
 	if err != nil {
 		return fmt.Errorf("cannot truncate file: %v", err)
 	}
@@ -265,11 +271,16 @@ func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
 		return fmt.Errorf("error flushing buffer: %v", err)
 	}
 
+	err = w.wgSyncConfig()
+	if err != nil {
+		return fmt.Errorf("cannot sync config: %v", err)
+	}
+
 	return nil
 }
 
 func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
-	f, err := os.OpenFile(w.configInterfacePath, os.O_RDWR, 0644)
+	f, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
 	}
@@ -300,7 +311,7 @@ func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
 	}
 
 	// Перезаписываем файл с удалённым пиром
-	err = os.Truncate(w.configInterfacePath, 0)
+	err = os.Truncate(w.configInterfacePath+"/"+w.interfaceName+".conf", 0)
 	if err != nil {
 		return fmt.Errorf("cannot truncate file: %v", err)
 	}
@@ -320,15 +331,18 @@ func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
 	if err != nil {
 		return fmt.Errorf("error flushing buffer: %v", err)
 	}
-
+	err = w.wgSyncConfig()
+	if err != nil {
+		return fmt.Errorf("cannot sync config: %v", err)
+	}
 	return nil
 }
 
 func (w *WgClient) initFile() error {
 	// Проверяем, существует ли файл
-	if _, err := os.Stat(w.configInterfacePath); os.IsNotExist(err) {
+	if _, err := os.Stat(w.configInterfacePath + "/" + w.interfaceName + ".conf"); os.IsNotExist(err) {
 		// Создаём файл с правами 0666 (rw-rw-rw-)
-		file, err := os.OpenFile(w.configInterfacePath, os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}
@@ -336,3 +350,15 @@ func (w *WgClient) initFile() error {
 	}
 	return nil
 }
+
+func (w *WgClient) wgSyncConfig() error {
+	out, err := exec.Command("wg-quick", "strip", w.configInterfacePath+"/"+w.interfaceName+".conf").Output()
+	if err != nil {
+		panic(err)
+	}
+	f, _ := os.OpenFile("config/temp.conf", os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0777)
+	defer f.Close()
+
+	f.Write(out)
+	return exec.Command("wg", "syncconf", "wg1", "config/temp.conf").Run()
+} //wg syncconf wg1 <(wg-quick strip wg1)
