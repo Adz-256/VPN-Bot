@@ -31,7 +31,7 @@ Telegram-бот для продажи доступа к VPN через WireGuard
     DSN=postgresql://postgres:postgres@postgres:5432/cheapvpn
     ENV=development
 
-    BOT_TOKEN=8049404870:AAF-4MRbvwEnh4oTMafto7me8bCE-yWpowI
+    BOT_TOKEN=...
     PAYMENT_ACCOUNT=4100117034899495
 
     WIREGUARD_CONFIG_PATH=wg0.conf
