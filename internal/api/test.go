@@ -27,7 +27,8 @@ func (a *API) handleTest(ctx context.Context, b *bot.Bot, update *tgModels.Updat
 
 	accs, err := a.s.sub.GetUserAccounts(ctx, update.CallbackQuery.From.ID)
 
-	if err != nil || accs != &[]models.WgPeer{} || accs != nil {
+	if err != nil || len(*accs) != 0 {
+		a.l.Debug("GetUserAccounts error", slog.Any("error", err), slog.Any("accs", accs))
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: callback.ID,
 			Text:            text.TestFail,
