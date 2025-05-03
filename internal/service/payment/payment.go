@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Adz-256/cheapVPN/internal/webhook"
+	"github.com/Adz-256/cheapVPN/internal/webhook/smee"
 	"log/slog"
 	"time"
 
@@ -18,8 +20,9 @@ import (
 var _ service.PaymentService = (*Service)(nil)
 
 type Service struct {
-	db repository.PaymentsRepository
-	paymentImpl.Payment
+	db        repository.PaymentRepository
+	paymentWH webhook.Webhook
+	payment   paymentImpl.Payment
 }
 
 const (
@@ -33,8 +36,8 @@ var (
 	ErrPaymentAlreadyCanceled = errors.New("payment already canceled")
 )
 
-func New(db repository.PaymentsRepository, paymentImpl paymentImpl.Payment) *Service {
-	return &Service{db: db, Payment: paymentImpl}
+func NewService(db repository.PaymentRepository, paymentWH webhook.Webhook, paymentImpl paymentImpl.Payment) *Service {
+	return &Service{db: db, paymentWH: paymentWH, payment: paymentImpl}
 }
 
 // ApprovePayment implements service.PaymentService.
@@ -101,17 +104,17 @@ func (s *Service) Get(ctx context.Context, transID string) (*models.Payment, err
 }
 
 // CreatePayLink implements service.PaymentService.
-func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan models.Plan, reciver string) (link string, transID string, err error) {
+func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan models.Plan, receiver string) (link string, transID string, err error) {
 
 	ump := umoney.Quickpay{
-		Recieiver:    reciver,
+		Receiver:     receiver,
 		QuickpayForm: "shop",
 		Targets:      plan.Country,
 		PaymentType:  "SB",
 		Sum:          plan.Price.String(),
 	}
 
-	link, transID, err = s.Payment.CreatePayLink(ump)
+	link, transID, err = s.payment.CreatePayLink(ump)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot create payment: %v", err)
 	}
@@ -132,4 +135,22 @@ func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan mode
 	}
 
 	return link, transID, nil
+}
+
+func (s *Service) StartPaymentsApprover() {
+	for p := range s.paymentWH.Channel() {
+		notif, err := smee.MapToNotification(p)
+		slog.Debug("Get New Notification", notif)
+		if err != nil {
+			slog.Error("cannot map to notification", slog.Any("error", err))
+			continue
+		}
+		if notif.Unaccepted != "true" {
+			err = s.ApprovePayment(context.Background(), notif.Label)
+			if err != nil {
+				slog.Error("cannot approve p", slog.Any("error", err))
+				continue
+			}
+		}
+	}
 }

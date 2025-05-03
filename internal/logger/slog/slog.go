@@ -6,14 +6,14 @@ import (
 )
 
 type LoggerConfig interface {
-	ENV() string
+	Level() string
 }
 
-func NewLogger(cfg LoggerConfig) *slog.Logger {
+func NewDefaultLogger(cfg LoggerConfig) {
 	var handler slog.Handler
 
-	switch cfg.ENV() {
-	case "production":
+	switch cfg.Level() {
+	case "debug":
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})
@@ -24,5 +24,6 @@ func NewLogger(cfg LoggerConfig) *slog.Logger {
 	}
 
 	logger := slog.New(handler)
-	return logger
+
+	slog.SetDefault(logger)
 }

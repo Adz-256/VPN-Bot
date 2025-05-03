@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/Adz-256/cheapVPN/internal/models"
 	"github.com/Adz-256/cheapVPN/internal/repository"
@@ -24,13 +26,18 @@ type Service struct {
 }
 
 // Block implements service.SubscriptionService.
-func (s *Service) Block(ctx context.Context, wgPeer *models.WgPeer) error {
-	return s.wg.BlockPeer(wgPeer.PublicKey)
+func (s *Service) Block(ctx context.Context, pubKey string) error {
+	return s.wg.BlockPeer(pubKey)
 }
 
 // Enable implements service.SubscriptionService.
-func (s *Service) Enable(ctx context.Context, wgPeer *models.WgPeer) error {
-	return s.wg.EnablePeer(wgPeer.PublicKey, wgPeer.ProvidedIP)
+func (s *Service) Enable(ctx context.Context, pubkey string) error {
+	wg, err := s.db.GetAccountByPublicKey(ctx, pubkey)
+	if err != nil {
+		return err
+	}
+
+	return s.wg.EnablePeer(pubkey, wg.ProvidedIP)
 }
 
 // CreateAccount implements service.SubscriptionService.
@@ -89,8 +96,49 @@ func (s *Service) GetUserAccounts(ctx context.Context, userID int64) (*[]models.
 	return &wgPeers, nil
 }
 
-func New(db repository.WgPoolRepository, wg *wireguard.WgClient) *Service {
+func (s *Service) GetExpiredAccounts(ctx context.Context) (*[]models.WgPeer, error) {
+	var wgPeers []models.WgPeer
 
+	wgPeersRepo, err := s.db.GetExpiredAccounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get expired accounts: %v", err)
+	}
+
+	for _, v := range *wgPeersRepo {
+		wgPeers = append(wgPeers, models.WgPeer{
+			ID:         v.ID,
+			PublicKey:  v.PublicKey,
+			ConfigFile: v.ConfigFile,
+			ServerIP:   v.ServerIP,
+			ProvidedIP: v.ProvidedIP,
+			CreatedAt:  v.CreatedAt,
+			EndAt:      v.EndAt,
+		})
+	}
+
+	return &wgPeers, nil
+}
+
+func (s *Service) StartExpireCRON() {
+	t := time.NewTicker(24 * time.Hour)
+	defer t.Stop()
+	for {
+		<-t.C
+		accs, err := s.GetExpiredAccounts(context.Background())
+		if err != nil {
+			slog.Error("GetExpiredAccounts error", slog.Any("error", err))
+		}
+
+		for _, acc := range *accs {
+			err = s.Block(context.Background(), acc.PublicKey)
+			if err != nil {
+				slog.Error("Block error", slog.Any("error", err))
+			}
+		}
+	}
+}
+
+func NewService(db repository.WgPoolRepository, wg *wireguard.WgClient) *Service {
 	return &Service{
 		db: db,
 		wg: wg,

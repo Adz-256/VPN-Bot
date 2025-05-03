@@ -1,5 +1,6 @@
 package webhook
 
 type Webhook interface {
-	Run() chan map[string]any
+	Run()
+	Channel() <-chan map[string]interface{}
 }

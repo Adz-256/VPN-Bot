@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var _ repository.PlansRepository = (*Plans)(nil)
+var _ repository.PlanRepository = (*Plans)(nil)
 
 type Plans struct {
 	db *pgxpool.Pool

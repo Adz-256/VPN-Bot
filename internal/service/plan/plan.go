@@ -11,10 +11,10 @@ import (
 var _ service.PlanService = (*Service)(nil)
 
 type Service struct {
-	db repository.PlansRepository
+	db repository.PlanRepository
 }
 
-func New(db repository.PlansRepository) *Service {
+func NewService(db repository.PlanRepository) *Service {
 	return &Service{
 		db: db,
 	}

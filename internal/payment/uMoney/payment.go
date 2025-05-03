@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/Adz-256/cheapVPN/internal/config"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -25,7 +26,7 @@ type Payment struct {
 }
 
 type Quickpay struct {
-	Recieiver    string
+	Receiver     string
 	QuickpayForm string
 	Targets      string
 	Label        string
@@ -33,9 +34,9 @@ type Quickpay struct {
 	Sum          string
 }
 
-func New(umoneyAccount string) *Payment {
+func New(cfg config.PaymentConfig) *Payment {
 	return &Payment{
-		umoneyAccount: umoneyAccount,
+		umoneyAccount: cfg.AccountID(),
 	}
 }
 
@@ -46,8 +47,8 @@ func (p *Payment) CreatePayLink(qp Quickpay) (link string, transID string, err e
 	if transID == "" {
 		transID = generateTransactionId()
 	}
-	if qp.Recieiver == "" {
-		qp.Recieiver = p.umoneyAccount
+	if qp.Receiver == "" {
+		qp.Receiver = p.umoneyAccount
 	}
 
 	payURL := configureRequestURL(qp, transID)
@@ -77,7 +78,7 @@ func (p *Payment) CreatePayLink(qp Quickpay) (link string, transID string, err e
 
 func configureRequestURL(qp Quickpay, transID string) string {
 	values := url.Values{}
-	values.Set(receiver, qp.Recieiver)
+	values.Set(receiver, qp.Receiver)
 	values.Set(quickpayForm, qp.QuickpayForm)
 	values.Set(targets, qp.Targets)
 	values.Set(paymentType, qp.PaymentType)

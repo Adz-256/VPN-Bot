@@ -16,7 +16,7 @@ AllowedIPs = {{ .AllowedIPs }}
 
 const wgUserConfigTemplate = `[Interface]
 PrivateKey = {{ .ClientPrivateKey }}
-Address = {{ .ClientAlowedIP }}
+Address = {{ .ClientAllowedIP }}
 DNS = 1.1.1.1
 
 [Peer]
@@ -43,6 +43,6 @@ type wgPeerConfig struct {
 type wgUserConfig struct {
 	ServerPublicKey  string
 	ClientPrivateKey string
-	ClientAlowedIP   string
+	ClientAllowedIP  string
 	Endpoint         string
 }

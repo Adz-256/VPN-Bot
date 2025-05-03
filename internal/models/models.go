@@ -46,4 +46,5 @@ type WgPeer struct {
 	ProvidedIP string
 	CreatedAt  time.Time
 	EndAt      time.Time
+	Blocked    bool
 }

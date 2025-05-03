@@ -26,7 +26,7 @@ func Test_configureRequestURL(t *testing.T) {
 		want string
 	}{
 		{name: "configureRequestURL", args: args{qp: Quickpay{
-			Recieiver:    "4100117034899495",
+			Receiver:     "4100117034899495",
 			QuickpayForm: "shop",
 			Targets:      "Sponsor this project",
 			PaymentType:  "SB",

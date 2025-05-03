@@ -11,7 +11,7 @@ import (
 )
 
 func (a *API) handleInstructions(ctx context.Context, b *bot.Bot, update *models.Update) {
-	a.l.Debug("handleInstructions callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleInstructions callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	callback := update.CallbackQuery
 	t := true
@@ -27,6 +27,6 @@ func (a *API) handleInstructions(ctx context.Context, b *bot.Bot, update *models
 		},
 	})
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 	}
 }

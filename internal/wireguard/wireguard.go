@@ -3,6 +3,7 @@ package wireguard
 import (
 	"bufio"
 	"fmt"
+	"github.com/Adz-256/cheapVPN/internal/config"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,6 +18,7 @@ type WgClient struct {
 	configInterfacePath string
 	addr                string
 	port                string
+	portOut             string
 	Pub                 string
 	lastCreatedIP       string
 	configOutPath       string
@@ -37,14 +39,15 @@ const (
 	postUpcmds     = "iptables -t nat -A POSTROUTING -s %s -o eth0 -j MASQUERADE; iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT; iptables -A FORWARD -i %s -j ACCEPT; iptables -A FORWARD -o %s -j ACCEPT; iptables -t nat -A PREROUTING -p udp --dport 51825 -j REDIRECT --to-port 51820" //allowedips with mask; port; interfacename; intefacename
 )
 
-func New(interfaceName string, addr string, port string, configPath string, out string) *WgClient {
+func New(cfg config.WgConfig) *WgClient {
 	return &WgClient{
-		interfaceName:       interfaceName,
-		addr:                addr,
-		port:                port,
-		configInterfacePath: configPath,
+		interfaceName:       cfg.InterfaceName(),
+		addr:                cfg.Address(),
+		port:                cfg.Port(),
+		portOut:             cfg.ExternalPort(),
+		configInterfacePath: cfg.InterfaceName(),
 		lastCreatedIP:       "10.9.0.1/32",
-		configOutPath:       out,
+		configOutPath:       cfg.ExternalPort(),
 		Mutex:               &sync.Mutex{},
 	}
 }
@@ -55,7 +58,9 @@ func (w *WgClient) AddressWithMask() string {
 
 // Init применяется один раз для одного клиента
 func (w *WgClient) Init() error {
-	w.initFile()
+	if err := w.initFile(); err != nil {
+		return err
+	}
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s.conf", w.configInterfacePath, w.interfaceName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot open file: %v", err)
@@ -140,8 +145,8 @@ func (w *WgClient) WriteUserConfig(privClient string, alowIP string) (path strin
 	cfg := wgUserConfig{
 		ServerPublicKey:  w.Pub,
 		ClientPrivateKey: privClient,
-		ClientAlowedIP:   alowIP,
-		Endpoint:         w.addr + ":" + "51825",
+		ClientAllowedIP:  alowIP,
+		Endpoint:         w.addr + ":" + w.portOut,
 	}
 
 	w.Lock()
@@ -227,6 +232,8 @@ func (w *WgClient) BlockPeer(pubKeyToRemove string) error {
 
 	found := false
 	// Читаем файл построчно
+	w.Lock()
+	defer w.Unlock()
 	scanner := bufio.NewScanner(f)
 	var lines []string
 	for scanner.Scan() {
@@ -339,15 +346,24 @@ func (w *WgClient) EnablePeer(pubKeyToEnable string, ip string) error {
 }
 
 func (w *WgClient) initFile() error {
+	// Проверяем, существует ли директория
+	if err := os.MkdirAll(w.configInterfacePath, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Полный путь до файла
+	filePath := w.configInterfacePath + "/" + w.interfaceName + ".conf"
+
 	// Проверяем, существует ли файл
-	if _, err := os.Stat(w.configInterfacePath + "/" + w.interfaceName + ".conf"); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Создаём файл с правами 0666 (rw-rw-rw-)
-		file, err := os.OpenFile(w.configInterfacePath+"/"+w.interfaceName+".conf", os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}
 		defer file.Close()
 	}
+
 	return nil
 }
 

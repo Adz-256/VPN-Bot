@@ -13,4 +13,9 @@ type WgPeer struct {
 	ProvidedIP string    `db:"provided_ip"`          // inet
 	CreatedAt  time.Time `db:"created_at,omitempty"` // timestamp
 	EndAt      time.Time `db:"end_at,omitempty"`     // timestamp
+	Blocked    bool      `db:"blocked"`
+}
+
+func (w *WgPeer) IsActive() bool {
+	return w.EndAt.Unix() <= time.Now().Unix()
 }

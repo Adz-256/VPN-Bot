@@ -3,17 +3,19 @@ package smee
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Adz-256/cheapVPN/internal/config"
 	"io"
 	"log"
 	"net/http"
 )
 
-type wh struct {
+type WH struct {
 	addr string
 	port string
+	ch   chan map[string]any
 }
 
-type SmeeNotification struct {
+type Notification struct {
 	NotificationType string `json:"notification_type"`
 	BillID           string `json:"bill_id"`
 	Amount           string `json:"amount"`
@@ -29,14 +31,15 @@ type SmeeNotification struct {
 	Currency         string `json:"currency"`
 }
 
-func New(addr, port string) *wh {
-	return &wh{
-		addr: addr,
-		port: port,
+func New(cfg config.WhConfig) *WH {
+	return &WH{
+		addr: cfg.Address(),
+		port: cfg.Port(),
+		ch:   make(chan map[string]any, 1024),
 	}
 }
 
-func (w *wh) Run(ch chan map[string]any) {
+func (w *WH) Run() {
 
 	http.HandleFunc("/", func(wr http.ResponseWriter, r *http.Request) {
 		var result map[string]any
@@ -52,7 +55,7 @@ func (w *wh) Run(ch chan map[string]any) {
 			return
 		}
 		log.Printf("Received webhook: %+v", result)
-		ch <- result
+		w.ch <- result
 	})
 
 	addr := fmt.Sprintf(":%s", w.port)
@@ -60,8 +63,12 @@ func (w *wh) Run(ch chan map[string]any) {
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func MapToNotification(m map[string]any) (SmeeNotification, error) {
-	var n SmeeNotification
+func (w *WH) Channel() <-chan map[string]any {
+	return w.ch
+}
+
+func MapToNotification(m map[string]any) (Notification, error) {
+	var n Notification
 	bytes, err := json.Marshal(m)
 	if err != nil {
 		return n, err

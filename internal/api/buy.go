@@ -16,7 +16,7 @@ import (
 )
 
 func (a *API) handleBuyChooseServer(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	callback := update.CallbackQuery
 
@@ -28,23 +28,23 @@ func (a *API) handleBuyChooseServer(ctx context.Context, b *bot.Bot, update *tgM
 	})
 
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 	}
 }
 
 func (a *API) handleBuyChoosePlan(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleBuy callback", slog.Any("user_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
+	slog.Debug("handleBuy callback", slog.Any("user_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
 
 	callback := update.CallbackQuery
 
-	cntry := strings.Split(callback.Data, "_")[1]
+	country := strings.Split(callback.Data, "_")[1]
 
-	plans, err := a.s.plan.GetAllByCounty(ctx, cntry)
+	plans, err := a.plan.GetAllByCounty(ctx, country)
 	if err != nil {
-		a.l.Error("GetAllByCounty error", slog.Any("error", err))
+		slog.Error("GetAllByCounty error", slog.Any("error", err))
 	}
 
-	kb := [][]tgModels.InlineKeyboardButton{}
+	var kb [][]tgModels.InlineKeyboardButton
 
 	for i := 0; i < len(*plans); i++ {
 		kb = append(kb, []tgModels.InlineKeyboardButton{
@@ -64,26 +64,26 @@ func (a *API) handleBuyChoosePlan(ctx context.Context, b *bot.Bot, update *tgMod
 	})
 
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 	}
 
 }
 
 func (a *API) handlePrePayment(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
+	slog.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
 
 	callback := update.CallbackQuery
 
 	planID := strings.Split(callback.Data, "_")[3]
 	id, err := strconv.ParseInt(planID, 10, 64)
 	if err != nil {
-		a.l.Error("ParseInt error", slog.Any("error", err))
+		slog.Error("ParseInt error", slog.Any("error", err))
 		return
 	}
 
-	plan, err := a.s.plan.GetOneByID(ctx, id)
+	plan, err := a.plan.GetOneByID(ctx, id)
 	if err != nil {
-		a.l.Error("GetOneByID error", slog.Any("error", err))
+		slog.Error("GetOneByID error", slog.Any("error", err))
 		return
 	}
 
@@ -96,9 +96,9 @@ func (a *API) handlePrePayment(ctx context.Context, b *bot.Bot, update *tgModels
 		Price: plan.Price,
 	}
 
-	link, transID, err := a.s.pay.CreatePayLink(ctx, u, mPlan, "")
+	link, transID, err := a.pay.CreatePayLink(ctx, u, mPlan, "")
 	if err != nil {
-		a.l.Error("CreatePayLink error", slog.Any("error", err))
+		slog.Error("CreatePayLink error", slog.Any("error", err))
 		return
 	}
 
@@ -109,28 +109,28 @@ func (a *API) handlePrePayment(ctx context.Context, b *bot.Bot, update *tgModels
 		ReplyMarkup: keyboards.PrePayment(callback.Data, link, transID),
 	})
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 		return
 	}
 }
 
 func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
+	slog.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID), slog.Any("data", update.CallbackQuery.Data))
 
 	callback := update.CallbackQuery
 
 	arrData := strings.Split(callback.Data, "_")
 	transID := arrData[1]
 
-	pay, err := a.s.pay.Get(ctx, transID)
+	pay, err := a.pay.Get(ctx, transID)
 	if err != nil {
-		a.l.Error("Get error", slog.Any("error", err))
+		slog.Error("Get error", slog.Any("error", err))
 		return
 	}
 
-	pl, err := a.s.plan.GetOneByID(ctx, pay.PlanID)
+	pl, err := a.plan.GetOneByID(ctx, pay.PlanID)
 	if err != nil {
-		a.l.Error("GetOneByID error", slog.Any("error", err))
+		slog.Error("GetOneByID error", slog.Any("error", err))
 		return
 	}
 
@@ -141,10 +141,10 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			UserID: pay.UserID,
 			EndAt:  t,
 		}
-		a.l.Debug("CreateAccount", slog.Any("wg", wg))
-		id, err := a.s.sub.CreateAccount(ctx, wg)
+		slog.Debug("CreateAccount", slog.Any("wg", wg))
+		id, err := a.sub.CreateAccount(ctx, wg)
 		if err != nil {
-			a.l.Error("CreateAccount error", slog.Any("error", err))
+			slog.Error("CreateAccount error", slog.Any("error", err))
 			return
 		}
 		_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -154,7 +154,7 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			ReplyMarkup: keyboards.BuySuccess(strconv.FormatInt(id, 10)),
 		})
 		if err != nil {
-			a.l.Error("EditMessageText error", slog.Any("error", err))
+			slog.Error("EditMessageText error", slog.Any("error", err))
 			return
 		}
 	} else if pay.Status == "canceled" {
@@ -163,7 +163,7 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			Text:            text.BuyAlreadyCanceled,
 		})
 		if err != nil {
-			a.l.Error("AnswerCallbackQuery error", slog.Any("error", err))
+			slog.Error("AnswerCallbackQuery error", slog.Any("error", err))
 			return
 		}
 		_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -173,7 +173,7 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			ReplyMarkup: keyboards.BuyChooseServer,
 		})
 		if err != nil {
-			a.l.Error("EditMessageText error", slog.Any("error", err))
+			slog.Error("EditMessageText error", slog.Any("error", err))
 			return
 		}
 	} else {
@@ -182,7 +182,7 @@ func (a *API) handlePaymentConfirm(ctx context.Context, b *bot.Bot, update *tgMo
 			Text:            "Ожидание платежа",
 		})
 		if err != nil {
-			a.l.Error("AnswerCallbackQuery error", slog.Any("error", err))
+			slog.Error("AnswerCallbackQuery error", slog.Any("error", err))
 			return
 		}
 

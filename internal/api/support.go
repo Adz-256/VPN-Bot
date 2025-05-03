@@ -11,7 +11,7 @@ import (
 )
 
 func (a *API) handleSupport(ctx context.Context, b *bot.Bot, update *models.Update) {
-	a.l.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleBuy callback", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	callback := update.CallbackQuery
 
@@ -22,6 +22,6 @@ func (a *API) handleSupport(ctx context.Context, b *bot.Bot, update *models.Upda
 		ReplyMarkup: keyboards.Support,
 	})
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 	}
 }

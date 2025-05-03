@@ -14,7 +14,7 @@ import (
 )
 
 func (a *API) handleTest(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleTest", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleTest", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	callback := update.CallbackQuery
 
@@ -25,10 +25,10 @@ func (a *API) handleTest(ctx context.Context, b *bot.Bot, update *tgModels.Updat
 		EndAt:  t,
 	}
 
-	accs, err := a.s.sub.GetUserAccounts(ctx, update.CallbackQuery.From.ID)
+	accs, err := a.sub.GetUserAccounts(ctx, update.CallbackQuery.From.ID)
 
 	if err != nil || len(*accs) != 0 {
-		a.l.Debug("GetUserAccounts error", slog.Any("error", err), slog.Any("accs", accs))
+		slog.Debug("GetUserAccounts error", slog.Any("error", err), slog.Any("accs", accs))
 		b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: callback.ID,
 			Text:            text.TestFail,
@@ -36,10 +36,10 @@ func (a *API) handleTest(ctx context.Context, b *bot.Bot, update *tgModels.Updat
 		return
 	}
 
-	a.l.Debug("CreateAccount", slog.Any("wg", wg))
-	id, err := a.s.sub.CreateAccount(ctx, wg)
+	slog.Debug("CreateAccount", slog.Any("wg", wg))
+	id, err := a.sub.CreateAccount(ctx, wg)
 	if err != nil {
-		a.l.Error("CreateAccount error", slog.Any("error", err))
+		slog.Error("CreateAccount error", slog.Any("error", err))
 		return
 	}
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -49,7 +49,7 @@ func (a *API) handleTest(ctx context.Context, b *bot.Bot, update *tgModels.Updat
 		ReplyMarkup: keyboards.BuySuccess(strconv.FormatInt(id, 10)),
 	})
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 		return
 	}
 }

@@ -10,8 +10,7 @@ type DBConfig interface {
 	DSN() string
 }
 
-func New(cfg DBConfig) *pgxpool.Pool {
-	ctx := context.Background()
+func New(ctx context.Context, cfg DBConfig) *pgxpool.Pool {
 
 	pool, err := pgxpool.Connect(ctx, cfg.DSN())
 	if err != nil {

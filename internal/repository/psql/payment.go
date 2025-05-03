@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-var _ repository.PaymentsRepository = (*Payments)(nil)
+var _ repository.PaymentRepository = (*Payments)(nil)
 
 type Payments struct {
 	db *pgxpool.Pool

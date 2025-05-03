@@ -13,17 +13,17 @@ import (
 )
 
 func (a *API) handleStart(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
-	a.l.Debug("handleStart", slog.Any("chat_id", update.Message.From.ID))
+	slog.Debug("handleStart", slog.Any("chat_id", update.Message.From.ID))
 
 	u := &models.User{
 		UserID:   update.Message.From.ID,
 		Username: update.Message.From.FirstName,
 	}
 
-	_, err := a.s.user.Create(ctx, u)
+	_, err := a.user.Create(ctx, u)
 
 	if err != nil && err != sql.ErrNoRows {
-		a.l.Error("Create error", slog.Any("error", err))
+		slog.Error("Create error", slog.Any("error", err))
 	}
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
@@ -31,14 +31,14 @@ func (a *API) handleStart(ctx context.Context, b *bot.Bot, update *tgModels.Upda
 		ReplyMarkup: keyboards.Start,
 	})
 	if err != nil {
-		a.l.Error("SendMessage error", slog.Any("error", err))
+		slog.Error("SendMessage error", slog.Any("error", err))
 		return
 	}
 }
 
 func (a *API) handleStartCallback(ctx context.Context, b *bot.Bot, update *tgModels.Update) {
 	callback := update.CallbackQuery
-	a.l.Debug("handleStartCallback", slog.Any("chat_id", callback.From.ID))
+	slog.Debug("handleStartCallback", slog.Any("chat_id", callback.From.ID))
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      callback.From.ID,
@@ -47,7 +47,7 @@ func (a *API) handleStartCallback(ctx context.Context, b *bot.Bot, update *tgMod
 		ReplyMarkup: keyboards.Start,
 	})
 	if err != nil {
-		a.l.Error("EditMessageText error", slog.Any("error", err))
+		slog.Error("EditMessageText error", slog.Any("error", err))
 		return
 	}
 }

@@ -1,19 +1,23 @@
-package api
+package telegram
 
 import (
 	"context"
-
+	"github.com/Adz-256/cheapVPN/internal/config"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
-// func (a *API) handleAbout(ctx context.Context, b *bot.Bot, update *models.Update) {
-// 	b.SendMessage(ctx, &bot.SendMessageParams{
-// 		ChatID:      update.Message.Chat.ID,
-// 		Text:        text.About,
-// 		ReplyMarkup: keyboards.About,
-// 	})
-// }
+func InitBotWithDefaultHandler(cfg config.BotConfig) *bot.Bot {
+	opts := []bot.Option{
+		bot.WithDefaultHandler(defaultHandler),
+	}
+	b, err := bot.New(cfg.Token(), opts...)
+	if err != nil {
+		panic(err)
+	}
+
+	return b
+}
 
 func defaultHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update.Message == nil {

@@ -3,6 +3,7 @@ package psql
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"log/slog"
 
@@ -27,8 +28,10 @@ const (
 	serverIPColumn   = "server_ip"
 	providedIPColumn = "provided_ip"
 	endAtColumn      = "end_at"
+	blockedColumn    = "blocked"
 )
 
+// Get all accounts that belongs to user
 func (w *WgPeers) GetUserAccounts(ctx context.Context, userID int64) (*[]repoModels.WgPeer, error) {
 	query, args, err := w.b.Select(idColumn,
 		userIDColumn, publicKeyColumn,
@@ -114,6 +117,58 @@ func (w *WgPeers) DeleteAccount(ctx context.Context, id int64) error {
 	}
 
 	return nil
+}
+
+func (w *WgPeers) GetAccountByPublicKey(ctx context.Context, pubKey string) (*repoModels.WgPeer, error) {
+	query, args, err := w.b.Select(idColumn,
+		userIDColumn, publicKeyColumn,
+		configFileColumn, serverIPColumn,
+		providedIPColumn, createdAtColumn, endAtColumn).From(WgPoolsTable).Where(sq.Eq{publicKeyColumn: pubKey}).ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("cannot build sql query: %v", err)
+	}
+
+	var wgPeer repoModels.WgPeer
+
+	err = w.db.QueryRow(ctx, query, args...).Scan(
+		&wgPeer.ID, &wgPeer.UserID, &wgPeer.PublicKey, &wgPeer.ConfigFile,
+		&wgPeer.ServerIP, &wgPeer.ProvidedIP, &wgPeer.CreatedAt, &wgPeer.EndAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot execute sql query: %v", err)
+	}
+
+	return &wgPeer, nil
+}
+
+func (w *WgPeers) GetExpiredAccounts(ctx context.Context) (*[]repoModels.WgPeer, error) {
+	query, args, err := w.b.Select(idColumn,
+		userIDColumn, publicKeyColumn,
+		configFileColumn, serverIPColumn,
+		providedIPColumn, createdAtColumn, endAtColumn).From(WgPoolsTable).Where(sq.Lt{endAtColumn: time.Now()}, sq.Eq{blockedColumn: false}).ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("cannot build sql query: %v", err)
+	}
+
+	rows, err := w.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("cannot execute sql query: %v", err)
+	}
+	defer rows.Close()
+
+	var wgPeers []repoModels.WgPeer
+	for rows.Next() {
+		var wgPeer repoModels.WgPeer
+		err = rows.Scan(
+			&wgPeer.ID, &wgPeer.UserID, &wgPeer.PublicKey, &wgPeer.ConfigFile,
+			&wgPeer.ServerIP, &wgPeer.ProvidedIP, &wgPeer.CreatedAt, &wgPeer.EndAt)
+		if err != nil {
+			return nil, fmt.Errorf("cannot scan row: %v", err)
+		}
+		wgPeers = append(wgPeers, wgPeer)
+	}
+
+	return &wgPeers, nil
 }
 
 func NewWgPools(db *pgxpool.Pool) *WgPeers {
