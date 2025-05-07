@@ -48,3 +48,10 @@ type WgPeer struct {
 	EndAt      time.Time
 	Blocked    bool
 }
+
+type BrokerMessage struct {
+	Topic  string
+	Value  []byte
+	Offset int64
+	Time   time.Time
+}

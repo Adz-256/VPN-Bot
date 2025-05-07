@@ -13,7 +13,7 @@ type WgPeer struct {
 	ProvidedIP string    `db:"provided_ip"`          // inet
 	CreatedAt  time.Time `db:"created_at,omitempty"` // timestamp
 	EndAt      time.Time `db:"end_at,omitempty"`     // timestamp
-	Blocked    bool      `db:"blocked"`
+	Blocked    bool      `db:"blocked,omitempty"`
 }
 
 func (w *WgPeer) IsActive() bool {

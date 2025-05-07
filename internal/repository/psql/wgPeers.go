@@ -141,6 +141,32 @@ func (w *WgPeers) GetAccountByPublicKey(ctx context.Context, pubKey string) (*re
 	return &wgPeer, nil
 }
 
+func (w *WgPeers) BlockByID(ctx context.Context, id int) error {
+	query, args, err := w.b.Update(WgPoolsTable).Set(blockedColumn, true).Where(sq.Eq{idColumn: id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("cannot build sql query: %v", err)
+	}
+	_, err = w.db.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("cannot execute sql query: %v", err)
+	}
+
+	return nil
+}
+
+func (w *WgPeers) EnableByID(ctx context.Context, id int, endAt time.Time) error {
+	query, args, err := w.b.Update(WgPoolsTable).Set(blockedColumn, false).Set(endAtColumn, endAt).Where(sq.Eq{idColumn: id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("cannot build sql query: %v", err)
+	}
+	_, err = w.db.Exec(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("cannot execute sql query: %v", err)
+	}
+
+	return nil
+}
+
 func (w *WgPeers) GetExpiredAccounts(ctx context.Context) (*[]repoModels.WgPeer, error) {
 	query, args, err := w.b.Select(idColumn,
 		userIDColumn, publicKeyColumn,

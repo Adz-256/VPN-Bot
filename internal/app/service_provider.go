@@ -31,6 +31,7 @@ type serviceProvider struct {
 	wgCfg  config.WgConfig
 	whCfg  config.WhConfig
 	botCfg config.BotConfig
+	subCfg config.SubscriptionConfig
 
 	db  *pgxpool.Pool
 	bot *bot.Bot
@@ -71,6 +72,14 @@ func (s *serviceProvider) DBConfig() config.DBConfig {
 	}
 
 	return s.dbCfg
+}
+
+func (s *serviceProvider) SubConfig() config.SubscriptionConfig {
+	if s.subCfg == nil {
+		s.subCfg = env.NewSubscription()
+	}
+
+	return s.subCfg
 }
 
 func (s *serviceProvider) PayConfig() config.PaymentConfig {
@@ -205,7 +214,7 @@ func (s *serviceProvider) WgClient(_ context.Context) *wireguard.WgClient {
 
 func (s *serviceProvider) SubscriptionService(ctx context.Context) service.SubscriptionService {
 	if s.subService == nil {
-		s.subService = subscription.NewService(s.WgPoolRepo(ctx), s.WgClient(ctx))
+		s.subService = subscription.NewService(s.WgPoolRepo(ctx), s.WgClient(ctx), s.subCfg)
 	}
 
 	return s.subService

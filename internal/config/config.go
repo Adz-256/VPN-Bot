@@ -26,6 +26,14 @@ type WgConfig interface {
 	OutFilePath() string
 }
 
+type KafkaConfig interface {
+	Brokers() []string
+}
+
+type SubscriptionConfig interface {
+	UpdateRateHours() int64
+}
+
 type DBConfig interface {
 	DSN() string
 }

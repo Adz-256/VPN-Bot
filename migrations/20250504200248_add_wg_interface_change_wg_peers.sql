@@ -1,0 +1,60 @@
+-- -- +goose Up
+-- -- +goose StatementBegin
+-- -- +goose Up
+-- -- +goose StatementBegin
+-- CREATE TABLE wg_interfaces (
+--     id serial PRIMARY KEY,
+--     name text NOT NULL,
+--     server_ip text NOT NULL
+-- );
+--
+-- -- Временное добавление новой колонки
+-- ALTER TABLE wg_peers ADD COLUMN wg_interface_id bigint;
+--
+-- -- Создание интерфейсов по уникальным IP
+-- INSERT INTO wg_interfaces (name, server_ip)
+-- SELECT DISTINCT 'auto_' || server_ip, server_ip FROM wg_peers;
+--
+-- -- Проставление wg_interface_id на основе server_ip
+-- UPDATE wg_peers
+-- SET wg_interface_id = wi.id
+-- FROM wg_interfaces wi
+-- WHERE wg_peers.server_ip = wi.server_ip;
+--
+-- -- Сделать колонку NOT NULL после обновления
+-- ALTER TABLE wg_peers ALTER COLUMN wg_interface_id SET NOT NULL;
+--
+-- -- Добавить внешний ключ
+-- ALTER TABLE wg_peers
+--     ADD CONSTRAINT fk_wg_interface FOREIGN KEY (wg_interface_id) REFERENCES wg_interfaces(id);
+--
+-- -- Удалить старую колонку
+-- ALTER TABLE wg_peers DROP COLUMN server_ip;
+-- -- +goose StatementEnd
+--
+-- -- +goose StatementEnd
+--
+-- -- +goose Down
+-- -- +goose StatementBegin
+-- -- +goose Down
+-- -- +goose StatementBegin
+-- -- Добавляем колонку обратно
+-- ALTER TABLE wg_peers ADD COLUMN server_ip text;
+--
+-- -- Восстанавливаем значения
+-- UPDATE wg_peers
+-- SET server_ip = wi.server_ip
+-- FROM wg_interfaces wi
+-- WHERE wg_peers.wg_interface_id = wi.id;
+--
+-- -- Удаляем внешний ключ
+-- ALTER TABLE wg_peers DROP CONSTRAINT fk_wg_interface;
+--
+-- -- Удаляем колонку wg_interface_id
+-- ALTER TABLE wg_peers DROP COLUMN wg_interface_id;
+--
+-- -- Удаляем таблицу интерфейсов
+-- DROP TABLE wg_interfaces;
+-- -- +goose StatementEnd
+-- 
+-- -- +goose StatementEnd

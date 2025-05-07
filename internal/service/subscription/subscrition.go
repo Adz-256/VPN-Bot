@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Adz-256/cheapVPN/internal/config"
 	"log/slog"
 	"time"
 
@@ -21,8 +22,9 @@ var (
 )
 
 type Service struct {
-	db repository.WgPoolRepository
-	wg *wireguard.WgClient
+	db              repository.WgPoolRepository
+	wg              *wireguard.WgClient
+	updateRateHours int64
 }
 
 // Block implements service.SubscriptionService.
@@ -120,7 +122,7 @@ func (s *Service) GetExpiredAccounts(ctx context.Context) (*[]models.WgPeer, err
 }
 
 func (s *Service) StartExpireCRON() {
-	t := time.NewTicker(24 * time.Hour)
+	t := time.NewTicker(time.Duration(s.updateRateHours) * time.Second)
 	defer t.Stop()
 	for {
 		<-t.C
@@ -138,9 +140,10 @@ func (s *Service) StartExpireCRON() {
 	}
 }
 
-func NewService(db repository.WgPoolRepository, wg *wireguard.WgClient) *Service {
+func NewService(db repository.WgPoolRepository, wg *wireguard.WgClient, cfg config.SubscriptionConfig) *Service {
 	return &Service{
-		db: db,
-		wg: wg,
+		db:              db,
+		wg:              wg,
+		updateRateHours: cfg.UpdateRateHours(),
 	}
 }
