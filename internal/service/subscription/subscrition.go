@@ -122,7 +122,7 @@ func (s *Service) GetExpiredAccounts(ctx context.Context) (*[]models.WgPeer, err
 }
 
 func (s *Service) StartExpireCRON() {
-	t := time.NewTicker(time.Duration(s.updateRateHours) * time.Second)
+	t := time.NewTicker(time.Duration(s.updateRateHours) * time.Hour)
 	defer t.Stop()
 	for {
 		<-t.C

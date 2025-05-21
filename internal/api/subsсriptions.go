@@ -53,9 +53,9 @@ func (a *API) handleShow(ctx context.Context, b *bot.Bot, update *models.Update)
 	}
 }
 
-func (a *API) handleFileRequst(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (a *API) handleFileRequest(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery
-	slog.Debug("handleFileRequst", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleFileRequest", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	accs, err := a.sub.GetUserAccounts(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
@@ -109,7 +109,7 @@ func (a *API) handleFileRequst(ctx context.Context, b *bot.Bot, update *models.U
 
 func (a *API) handleQRRequst(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery
-	slog.Debug("handleFileRequst", slog.Any("chat_id", update.CallbackQuery.From.ID))
+	slog.Debug("handleFileRequest", slog.Any("chat_id", update.CallbackQuery.From.ID))
 
 	accs, err := a.sub.GetUserAccounts(ctx, update.CallbackQuery.From.ID)
 	if err != nil {

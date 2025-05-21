@@ -26,7 +26,7 @@ type WgConfig interface {
 	OutFilePath() string
 }
 
-type KafkaConfig interface {
+type BrokerConfig interface {
 	Brokers() []string
 }
 

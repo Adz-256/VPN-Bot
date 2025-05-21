@@ -2,12 +2,15 @@ package payment
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Adz-256/cheapVPN/internal/webhook"
-	"github.com/Adz-256/cheapVPN/internal/webhook/smee"
 	"log/slog"
 	"time"
+
+	"github.com/Adz-256/cheapVPN/internal/broker"
+	"github.com/Adz-256/cheapVPN/internal/webhook"
+	"github.com/Adz-256/cheapVPN/internal/webhook/smee"
 
 	"github.com/Adz-256/cheapVPN/internal/models"
 	paymentImpl "github.com/Adz-256/cheapVPN/internal/payment"
@@ -23,6 +26,7 @@ type Service struct {
 	db        repository.PaymentRepository
 	paymentWH webhook.Webhook
 	payment   paymentImpl.Payment
+	consumer  broker.Consumer
 }
 
 const (
@@ -36,8 +40,8 @@ var (
 	ErrPaymentAlreadyCanceled = errors.New("payment already canceled")
 )
 
-func NewService(db repository.PaymentRepository, paymentWH webhook.Webhook, paymentImpl paymentImpl.Payment) *Service {
-	return &Service{db: db, paymentWH: paymentWH, payment: paymentImpl}
+func NewService(db repository.PaymentRepository, paymentWH webhook.Webhook, paymentImpl paymentImpl.Payment, consumer broker.Consumer) *Service {
+	return &Service{db: db, paymentWH: paymentWH, payment: paymentImpl, consumer: consumer}
 }
 
 // ApprovePayment implements service.PaymentService.
@@ -138,8 +142,21 @@ func (s *Service) CreatePayLink(ctx context.Context, user models.User, plan mode
 }
 
 func (s *Service) StartPaymentsApprover() {
-	for p := range s.paymentWH.Channel() {
-		notif, err := smee.MapToNotification(p)
+	slog.Debug("starting payments approver")
+	for {
+		msg, err := s.consumer.Read(context.TODO())
+
+		if msg == nil {
+			slog.Debug("message is nil")
+			continue
+		}
+		if err != nil {
+			slog.Error("cannot read payment approver msg", slog.Any("err", err))
+			continue
+		}
+		slog.Debug("get New Message From Broker", slog.Any("msg", msg))
+		var notif smee.Notification
+		err = json.Unmarshal(msg.Value, &notif)
 		slog.Debug("Get New Notification", notif)
 		if err != nil {
 			slog.Error("cannot map to notification", slog.Any("error", err))

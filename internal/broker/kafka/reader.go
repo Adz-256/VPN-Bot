@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"github.com/Adz-256/cheapVPN/internal/broker"
 
 	"github.com/Adz-256/cheapVPN/internal/closer"
 	"github.com/Adz-256/cheapVPN/internal/models"
@@ -12,12 +13,14 @@ type Reader struct {
 	k *kafka.Reader
 }
 
-func (b *Broker) NewReader(groupID string, topic string) *Reader {
+func (b *Broker) NewReader(groupID string, topic string) broker.Consumer {
 	k := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: b.brokers,
 		GroupID: groupID,
 		Topic:   topic,
 	})
+
+	k.Stats()
 
 	closer.Add(k.Close)
 

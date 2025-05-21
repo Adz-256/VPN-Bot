@@ -1,6 +1,7 @@
 services:
+  #Не забыть запущить новую версию и поменять назад на версию с докер хаба
   smee:
-    image: binaryrat/smee
+    build: .
     container_name: smee
 
   postgres:
@@ -15,6 +16,8 @@ services:
 
   migrator:
     image: binaryrat/migrator:1
+    depends_on:
+      - postgres
     restart: on-failure
 
   bot:
@@ -25,14 +28,13 @@ services:
       - NET_ADMIN
       - SYS_MODULE
     ports:
-    - "3000:3000"
+    - "3333:3333"
     - "51825:51820/tcp"
     - "51825:51820/udp"
-    environment:
-      - DSN=postgres://postgres:postgres@postgres:5432/cheapvpn
     depends_on:
       - postgres
-    restart: on-failure 
+      - kafka
+    restart: on-failure
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -40,18 +42,68 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - "22181:2181"
+      - "2181:2181"
 
   kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
       - zookeeper
     ports:
-      - "29092:29092"
+      - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: kafka
+    restart: on-failure
+
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8082:8080"
+    environment:
+      DYNAMIC_CONFIG_ENABLED: true
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=http://my.grafana.server/
+      - GF_PLUGINS_PREINSTALL=grafana-clock-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - "grafana_storage:/var/lib/grafana"
+
+  kafka-lag-exporter:
+    image: seglo/kafka-lag-exporter:0.7.1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./application.conf:/opt/docker/conf/application.conf
+    depends_on:
+      - kafka
+    restart: on-failure
+
+volumes:
+  pgdata:
+  grafana_storage:
+  prometheus:
+  kafka-lag-exporter:

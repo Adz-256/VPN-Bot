@@ -1,18 +1,26 @@
 package smee
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Adz-256/cheapVPN/internal/config"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
+
+	"github.com/Adz-256/cheapVPN/internal/broker"
+	"github.com/Adz-256/cheapVPN/internal/config"
+	"github.com/Adz-256/cheapVPN/internal/models"
+	"github.com/Adz-256/cheapVPN/internal/webhook"
 )
+
+var _ webhook.Webhook = (*WH)(nil)
 
 type WH struct {
 	addr string
 	port string
-	ch   chan map[string]any
+	pub  broker.Publisher
 }
 
 type Notification struct {
@@ -31,40 +39,40 @@ type Notification struct {
 	Currency         string `json:"currency"`
 }
 
-func New(cfg config.WhConfig) *WH {
+func New(cfg config.WhConfig, publisher broker.Publisher) *WH {
 	return &WH{
 		addr: cfg.Address(),
 		port: cfg.Port(),
-		ch:   make(chan map[string]any, 1024),
+		pub:  publisher,
 	}
 }
 
 func (w *WH) Run() {
 
 	http.HandleFunc("/", func(wr http.ResponseWriter, r *http.Request) {
-		var result map[string]any
+		// var result map[string]any
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Printf("error reading body: %v", err)
 			return
 		}
-		err = json.Unmarshal(body, &result)
+		// err = json.Unmarshal(body, &result)
+		// if err != nil {
+		// 	log.Printf("error unmarshaling json: %v", err)
+		// 	return
+		// }
+		// log.Printf("Received webhook: %+v", result)
+
+		err = w.pub.Write(context.TODO(), models.BrokerMessage{Value: body})
 		if err != nil {
-			log.Printf("error unmarshaling json: %v", err)
-			return
+			slog.Error("error writing message", err)
 		}
-		log.Printf("Received webhook: %+v", result)
-		w.ch <- result
 	})
 
 	addr := fmt.Sprintf(":%s", w.port)
-	log.Printf("Listening on %s", addr)
+	log.Printf("Listening webhooks on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
-}
-
-func (w *WH) Channel() <-chan map[string]any {
-	return w.ch
 }
 
 func MapToNotification(m map[string]any) (Notification, error) {

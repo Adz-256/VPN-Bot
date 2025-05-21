@@ -52,7 +52,7 @@ func (a *API) registerHandlers() {
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "test", bot.MatchTypeExact, a.handleTest)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "subscriptions", bot.MatchTypeExact, a.handleSubscriptions)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "show_", bot.MatchTypePrefix, a.handleShow)
-	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "config_", bot.MatchTypePrefix, a.handleFileRequst)
+	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "config_", bot.MatchTypePrefix, a.handleFileRequest)
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "qr_", bot.MatchTypePrefix, a.handleQRRequst)
 
 	a.b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "buy", bot.MatchTypeExact, a.handleBuyChooseServer)

@@ -2,6 +2,11 @@ package app
 
 import (
 	"context"
+	"github.com/Adz-256/cheapVPN/internal/broker"
+	"github.com/Adz-256/cheapVPN/internal/broker/kafka"
+	"github.com/Adz-256/cheapVPN/internal/metrics"
+	"github.com/Adz-256/cheapVPN/internal/metrics/prometheus"
+
 	"github.com/Adz-256/cheapVPN/internal/api"
 	"github.com/Adz-256/cheapVPN/internal/closer"
 	"github.com/Adz-256/cheapVPN/internal/config"
@@ -25,16 +30,19 @@ import (
 )
 
 type serviceProvider struct {
-	logCfg config.LoggerConfig
-	dbCfg  config.DBConfig
-	payCfg config.PaymentConfig
-	wgCfg  config.WgConfig
-	whCfg  config.WhConfig
-	botCfg config.BotConfig
-	subCfg config.SubscriptionConfig
+	logCfg    config.LoggerConfig
+	dbCfg     config.DBConfig
+	payCfg    config.PaymentConfig
+	wgCfg     config.WgConfig
+	whCfg     config.WhConfig
+	botCfg    config.BotConfig
+	subCfg    config.SubscriptionConfig
+	brokerCfg config.BrokerConfig
 
 	db  *pgxpool.Pool
 	bot *bot.Bot
+
+	paymentBroker broker.Broker
 
 	paymentsRepo repository.PaymentRepository
 
@@ -45,6 +53,8 @@ type serviceProvider struct {
 
 	planRepo repository.PlanRepository
 
+	paymentConsumer  broker.Consumer
+	paymentPublisher broker.Publisher
 	paymentWebhook   webhook.Webhook
 	paymentProcessor proc.Payment
 	paymentService   service.PaymentService
@@ -56,10 +66,29 @@ type serviceProvider struct {
 	planService service.PlanService
 
 	api *api.API
+
+	metricsServer metrics.Server
 }
+
+const (
+	paymentTopic   = "payments"
+	paymentGroupID = "payment_group"
+)
 
 func newServiceProvider() *serviceProvider {
 	return &serviceProvider{}
+}
+
+func (s *serviceProvider) BrokerConfig() config.BrokerConfig {
+	if s.brokerCfg == nil {
+		brokerCfg, err := env.NewPaymentBrokerConfig()
+		if err != nil {
+			panic(err)
+		}
+		s.brokerCfg = brokerCfg
+	}
+
+	return s.brokerCfg
 }
 
 func (s *serviceProvider) DBConfig() config.DBConfig {
@@ -161,6 +190,43 @@ func (s *serviceProvider) DBClient(ctx context.Context) *pgxpool.Pool {
 	return s.db
 }
 
+func (s *serviceProvider) MetricsServer(_ context.Context) metrics.Server {
+	if s.metricsServer == nil {
+		s.metricsServer = prometheus.New()
+	}
+
+	return s.metricsServer
+}
+
+func (s *serviceProvider) BrokerClient(_ context.Context) broker.Broker {
+	if s.paymentBroker == nil {
+		b, err := kafka.New(s.BrokerConfig())
+		if err != nil {
+			panic(err)
+		}
+
+		s.paymentBroker = b
+	}
+
+	return s.paymentBroker
+}
+
+func (s *serviceProvider) PaymentConsumer(ctx context.Context) broker.Consumer {
+	if s.paymentConsumer == nil {
+		s.paymentConsumer = s.BrokerClient(ctx).NewReader(paymentGroupID, paymentTopic)
+	}
+
+	return s.paymentConsumer
+}
+
+func (s *serviceProvider) PaymentPublisher(ctx context.Context) broker.Publisher {
+	if s.paymentPublisher == nil {
+		s.paymentPublisher = s.BrokerClient(ctx).NewWriter(paymentTopic)
+	}
+
+	return s.paymentPublisher
+}
+
 func (s *serviceProvider) UserRepo(ctx context.Context) repository.UserRepository {
 	if s.userRepo == nil {
 		s.userRepo = psql.NewUsers(s.DBClient(ctx))
@@ -214,7 +280,7 @@ func (s *serviceProvider) WgClient(_ context.Context) *wireguard.WgClient {
 
 func (s *serviceProvider) SubscriptionService(ctx context.Context) service.SubscriptionService {
 	if s.subService == nil {
-		s.subService = subscription.NewService(s.WgPoolRepo(ctx), s.WgClient(ctx), s.subCfg)
+		s.subService = subscription.NewService(s.WgPoolRepo(ctx), s.WgClient(ctx), s.SubConfig())
 	}
 
 	return s.subService
@@ -238,7 +304,8 @@ func (s *serviceProvider) PaymentProcessor(_ context.Context) proc.Payment {
 
 func (s *serviceProvider) PaymentService(ctx context.Context) service.PaymentService {
 	if s.paymentService == nil {
-		s.paymentService = payment.NewService(s.PaymentRepo(ctx), s.Webhook(ctx), s.PaymentProcessor(ctx))
+		s.paymentService = payment.NewService(s.PaymentRepo(ctx),
+			s.Webhook(ctx), s.PaymentProcessor(ctx), s.PaymentConsumer(ctx))
 	}
 
 	return s.paymentService
@@ -252,9 +319,9 @@ func (s *serviceProvider) Bot(_ context.Context) *bot.Bot {
 	return s.bot
 }
 
-func (s *serviceProvider) Webhook(_ context.Context) webhook.Webhook {
+func (s *serviceProvider) Webhook(ctx context.Context) webhook.Webhook {
 	if s.paymentWebhook == nil {
-		s.paymentWebhook = smee.New(s.WHConfig())
+		s.paymentWebhook = smee.New(s.WHConfig(), s.PaymentPublisher(ctx))
 	}
 
 	return s.paymentWebhook
